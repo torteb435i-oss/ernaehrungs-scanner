@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Food Scanner 2026</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f8f9fa; display: flex; flex-direction: column; align-items: center; }
+        header { background: #2ecc71; color: white; width: 100%; padding: 20px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #reader { width: 100%; max-width: 500px; margin-top: 10px; border-radius: 15px; overflow: hidden; }
+        .controls { margin: 20px; }
+        button { background: #3498db; color: white; border: none; padding: 15px 30px; border-radius: 30px; font-size: 1rem; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button:active { transform: scale(0.95); }
+        .info-card { width: 90%; max-width: 460px; margin: 20px; padding: 20px; background: white; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: none; }
+        .badge { display: inline-block; padding: 5px 12px; border-radius: 20px; color: white; font-weight: bold; margin-bottom: 10px; }
+        .warning { background: #e67e22; }
+        .safe { background: #27ae60; }
+        .ingredient-item { border-bottom: 1px solid #eee; padding: 8px 0; font-size: 0.9rem; }
+        .danger-text { color: #c0392b; font-weight: bold; }
+        #status { font-style: italic; color: #666; margin: 10px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🍎 AI Ernährungs-Scanner</h1>
+    </header>
+
+    <div class="controls">
+        <button id="start-btn" onclick="startScanner()">Kamera jetzt aktivieren</button>
+    </div>
+
+    <div id="reader"></div>
+    <p id="status">Klicke oben, um zu starten</p>
+
+    <div id="result-card" class="info-card">
+        <div id="score-badge" class="badge">Analyse...</div>
+        <h2 id="product-name" style="margin: 5px 0;">Produkt</h2>
+        <div id="ai-details"></div>
+    </div>
+
+    <script>
+        let html5QrCode;
+        
+        async function startScanner() {
+            // Button ausblenden, wenn Kamera startet
+            document.getElementById('start-btn').style.display = 'none';
+            document.getElementById('status').innerText = "Kamera wird angefragt...";
+            
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 10, qrbox: { width: 280, height: 180 } };
+
+            try {
+                await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+                document.getElementById('status').innerText = "Scanner aktiv - Barcode suchen...";
+            } catch (err) {
+                document.getElementById('status').innerText = "Fehler: " + err;
+                document.getElementById('start-btn').style.display = 'block';
+                alert("Hinweis: Für den Kamerazugriff ist HTTPS zwingend erforderlich!");
+            }
+        }
+
+        function onScanSuccess(decodedText) {
+            document.getElementById('status').innerText = "Barcode erkannt: " + decodedText;
+            fetchData(decodedText);
+            // Kurz pausieren, damit man das Ergebnis lesen kann
+            html5QrCode.pause(); 
+            setTimeout(() => html5QrCode.resume(), 5000);
+        }
+
+        async function fetchData(barcode) {
+            const url = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,ingredients_text,nutrition_grades`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.status === 1) {
+                    showUI(data.product);
+                } else {
+                    document.getElementById('status').innerText = "Produkt unbekannt.";
+                }
+            } catch (e) {
+                console.error("API Fehler", e);
+            }
+        }
+
+        function showUI(p) {
+            document.getElementById('result-card').style.display = 'block';
+            document.getElementById('product-name').innerText = p.product_name || "Unbekanntes Produkt";
+            
+            const score = (p.nutrition_grades || "u").toUpperCase();
+            const badge = document.getElementById('score-badge');
+            badge.innerText = "Nutri-Score: " + score;
+            badge.className = "badge " + (['A','B'].includes(score) ? 'safe' : 'warning');
+
+            analyzeAI(p.ingredients_text || "");
+        }
+
+        function analyzeAI(text) {
+            const details = document.getElementById('ai-details');
+            if(!text) {
+                details.innerHTML = "Keine Zutatenliste gefunden.";
+                return;
+            }
+
+            // Erweiterte KI-Analyse Logik
+            const kritisch = {
+                "Zucker": "Vorsicht: Hoher Zuckeranteil.",
+                "Palm": "Enthält Palmöl (gesättigte Fette).",
+                "Aroma": "Industrielle Aromen enthalten.",
+                "E322": "Emulgator Lecithin gefunden.",
+                "Süßungsmittel": "Künstliche Süße erkannt.",
+                "Modifizierte": "Hinweis auf Hochverarbeitung (UPF)."
+            };
+
+            let html = "<p><strong>KI-Analyse der Inhaltsstoffe:</strong></p>";
+            let count = 0;
+
+            for (let key in kritisch) {
+                if (text.toLowerCase().includes(key.toLowerCase())) {
+                    html += `<div class="ingredient-item">⚠️ <span class="danger-text">${key}</span>: ${kritisch[key]}</div>`;
+                    count++;
+                }
+            }
+
+            if(count === 0) html += "<p class='safe'>✅ Keine kritischen Zusatzstoffe auf der Standardliste erkannt.</p>";
+            details.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
