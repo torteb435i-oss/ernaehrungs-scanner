@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Nutrition AI Vision Pro</title>
+    <title>Nutrition AI Vision Pro + OCR</title>
     
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
     
     <style>
         :root {
@@ -17,8 +18,7 @@
         }
 
         body { 
-            font-family: -apple-system, system-ui, sans-serif; 
-            background: var(--bg); margin: 0; color: var(--text);
+            font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; color: var(--text);
             padding-bottom: env(safe-area-inset-bottom);
         }
 
@@ -36,199 +36,25 @@
             margin-bottom: 18px; border: 1px solid rgba(150,150,150,0.1);
         }
 
-        .stats-badge { background: var(--primary); color: white; padding: 25px; border-radius: 20px; text-align: center; }
-        .stats-badge big { font-size: 2.2rem; font-weight: 900; display: block; }
+        .mode-switch { display: flex; gap: 10px; margin-bottom: 20px; }
+        .mode-btn { 
+            flex: 1; padding: 12px; border-radius: 12px; border: none; 
+            background: rgba(120,120,120,0.1); color: var(--text); font-weight: 600; cursor: pointer;
+        }
+        .mode-btn.active { background: var(--primary); color: white; }
+
+        #reader-wrapper { position: relative; width: 100%; background: #000; display: none; overflow: hidden; border-radius: 0 0 25px 25px; }
+        #reader { width: 100%; height: 350px; }
 
         .btn { background: var(--primary); color: white; border: none; padding: 18px; border-radius: 18px; font-size: 1.1rem; font-weight: 700; width: 100%; cursor: pointer; }
-
-        #reader-wrapper { position: relative; width: 100%; background: #000; display: none; }
-        #reader { width: 100%; height: 320px; }
-
+        
         .ai-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
-        .feature-box { background: rgba(120,120,120,0.1); padding: 12px; border-radius: 18px; text-align: center; font-size: 0.8rem; font-weight: 600; }
-        .feature-box span { display: block; font-size: 1.2rem; margin-bottom: 4px; }
-
-        .allergy-warn { color: var(--red); font-weight: bold; background: rgba(255, 59, 48, 0.1); padding: 12px; border-radius: 15px; margin-top: 10px; font-size: 0.85rem; border: 1px solid var(--red); }
-
-        .additive-item { padding: 10px; border-bottom: 0.5px solid rgba(120,120,120,0.2); font-size: 0.85rem; }
+        .feature-box { background: rgba(120,120,120,0.1); padding: 12px; border-radius: 18px; text-align: center; font-size: 0.8rem; }
+        
+        .allergy-warn { color: var(--red); font-weight: bold; background: rgba(255, 59, 48, 0.1); padding: 12px; border-radius: 15px; margin: 10px 0; font-size: 0.85rem; border: 1px solid var(--red); }
+        .additive-item { padding: 8px; border-bottom: 0.5px solid rgba(120,120,120,0.2); font-size: 0.85rem; }
         .risk-high { color: var(--red); font-weight: bold; }
-        .risk-med { color: var(--warn); font-weight: bold; }
-        .risk-low { color: var(--green); font-weight: bold; }
-
+        
+        .loading-ocr { display: none; text-align: center; padding: 20px; color: var(--primary); font-weight: bold; }
         .hidden { display: none !important; }
-        .history-item { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding: 10px 0; border-bottom: 1px solid rgba(120,120,120,0.1); }
     </style>
-</head>
-<body>
-
-<header><h1>NUTRITION AI VISION PRO</h1></header>
-
-<div id="reader-wrapper">
-    <button onclick="stopScanner()" style="position:absolute; right:20px; top:20px; z-index:100; background:rgba(0,0,0,0.6); color:white; border:none; border-radius:50%; width:40px; height:40px;">✕</button>
-    <div id="reader"></div>
-</div>
-
-<div class="container">
-    <div class="card">
-        <div id="kcal-badge" class="stats-badge">
-            <small>KALORIEN HEUTE</small>
-            <big id="total-kcal">0 kcal</big>
-        </div>
-        <button class="btn" style="margin-top: 20px;" onclick="startScanner()">Scanner starten</button>
-    </div>
-
-    <div id="result-card" class="card hidden">
-        <div style="display:flex; justify-content:space-between; align-items: center;">
-            <h2 id="res-name" style="margin:0; font-size: 1.2rem;">Produkt</h2>
-            <div id="res-grade" style="font-size: 2rem; font-weight: 900;">-</div>
-        </div>
-        
-        <div class="ai-features">
-            <div class="feature-box"><span id="icon-nova">🏭</span><div id="text-nova">Verarbeitung</div></div>
-            <div class="feature-box"><span id="icon-vegan">🌿</span><div id="text-vegan">Inhalt</div></div>
-        </div>
-
-        <div id="allergy-section" class="hidden">
-            <div class="allergy-warn">⚠️ Allergene: <span id="allergy-list"></span></div>
-        </div>
-        
-        <div id="additive-info-section">
-            <h4 style="margin-bottom:5px; border-top: 1px solid rgba(120,120,120,0.2); padding-top: 10px;">Zusatzstoffe-Analyse:</h4>
-            <div id="additive-list-container"></div>
-        </div>
-
-        <button class="btn" style="background: #8e8e93; margin-top:20px;" onclick="closeResult()">Fertig</button>
-    </div>
-
-    <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0;">Verlauf (Top 50)</h3>
-            <button onclick="exportData()" style="background:none; border:none; color:var(--primary); font-weight:700; cursor:pointer;">EXPORT</button>
-        </div>
-        <div id="history-list"></div>
-    </div>
-</div>
-
-<script>
-    let html5QrCode;
-
-    // ERWEITERTE E-NUMMERN DATENBANK
-    const E_DATABASE = {
-        // Farbstoffe
-        "e102": { name: "Tartrazin", risk: "high", desc: "Künstlicher Gelbstoff. Kann Aktivität von Kindern stören." },
-        "e120": { name: "Karmin", risk: "med", desc: "Tierischer Farbstoff aus Läusen. Nicht vegan." },
-        "e129": { name: "Allurarot AC", risk: "high", desc: "Künstlicher Farbstoff. In einigen Ländern eingeschränkt." },
-        "e171": { name: "Titandioxid", risk: "high", desc: "In EU verboten. Kann Erbgut schädigen." },
-        // Konservierung
-        "e211": { name: "Natriumbenzoat", risk: "med", desc: "Konservierungsstoff. In Kombi mit Vitamin C problematisch." },
-        "e250": { name: "Natriumnitrit", risk: "high", desc: "Pökelsalz. Potenziell krebserregend." },
-        // Säuerung/Oxidation
-        "e300": { name: "Vitamin C", risk: "low", desc: "Unbedenklich. Antioxidationsmittel." },
-        "e330": { name: "Zitronensäure", risk: "low", desc: "Unbedenklich, schützt vor Verfärbung." },
-        "e322": { name: "Lecithin", risk: "low", desc: "Emulgator, meist aus Soja oder Sonnenblumen." },
-        // Geschmacksverstärker
-        "e621": { name: "Glutamat", risk: "med", desc: "Geschmacksverstärker. Kann Unverträglichkeiten auslösen." },
-        // Süßstoffe
-        "e950": { name: "Acesulfam K", risk: "med", desc: "Künstliche Süße. Langzeitfolgen umstritten." },
-        "e951": { name: "Aspartam", risk: "med", desc: "Süßstoff. Enthält Phenylalaninquelle." },
-        "e955": { name: "Sucralose", risk: "low", desc: "Kalorienfreie Süße. Gilt als weitgehend sicher." }
-    };
-
-    window.onload = refreshUI;
-
-    async function startScanner() {
-        document.getElementById('reader-wrapper').style.display = 'block';
-        html5QrCode = new Html5Qrcode("reader");
-        await html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, onScan);
-    }
-
-    async function stopScanner() {
-        if (html5QrCode) await html5QrCode.stop();
-        document.getElementById('reader-wrapper').style.display = 'none';
-    }
-
-    async function onScan(code) {
-        await stopScanner();
-        fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,nutriments,nutrition_grades,nova_group,additives_tags,ingredients_analysis_tags,allergens_tags`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 1) {
-                    const p = data.product;
-                    const entry = {
-                        name: p.product_name || "Unbekannt",
-                        kcal: Math.round(p.nutriments?.['energy-kcal_100g'] || 0),
-                        grade: (p.nutrition_grades || "c").toUpperCase(),
-                        nova: p.nova_group || "?",
-                        additives: p.additives_tags || [],
-                        isVegan: p.ingredients_analysis_tags?.includes('en:vegan'),
-                        allergens: p.allergens_tags || [],
-                        date: new Date().toLocaleDateString(),
-                        time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
-                    };
-                    saveEntry(entry);
-                } else { alert("Produkt nicht gefunden."); }
-            });
-    }
-
-    function saveEntry(p) {
-        let db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
-        db.unshift(p);
-        localStorage.setItem('nutritionDB', JSON.stringify(db.slice(0, 50)));
-        refreshUI();
-        showResult(p);
-    }
-
-    function showResult(p) {
-        document.getElementById('res-name').innerText = p.name;
-        document.getElementById('res-grade').innerText = p.grade;
-        document.getElementById('res-grade').style.color = p.grade < 'C' ? 'var(--green)' : 'var(--red)';
-
-        document.getElementById('icon-nova').innerText = p.nova == 4 ? "🏭" : "🍏";
-        document.getElementById('text-nova').innerText = p.nova == 4 ? "Hochverarbeitet" : "Natürlich";
-        document.getElementById('icon-vegan').innerText = p.isVegan ? "🌿" : "🍖";
-        document.getElementById('text-vegan').innerText = p.isVegan ? "Vegan" : "Klassisch";
-
-        // Allergie Warnung
-        const allergySection = document.getElementById('allergy-section');
-        if(p.allergens.length > 0) {
-            allergySection.classList.remove('hidden');
-            document.getElementById('allergy-list').innerText = p.allergens.map(a => a.replace('en:', '').toUpperCase()).join(', ');
-        } else { allergySection.classList.add('hidden'); }
-
-        // Zusatzstoffe Liste
-        const listCont = document.getElementById('additive-list-container');
-        listCont.innerHTML = "";
-        if (p.additives.length > 0) {
-            p.additives.forEach(tag => {
-                const eNum = tag.replace('en:', '').toLowerCase();
-                const info = E_DATABASE[eNum] || { name: eNum.toUpperCase(), risk: "low", desc: "Keine speziellen Risiken gelistet." };
-                listCont.innerHTML += `<div class="additive-item"><span class="risk-${info.risk}">${info.name}</span>: ${info.desc}</div>`;
-            });
-        } else { listCont.innerHTML = "<p style='opacity:0.6'>Keine kritischen Zusatzstoffe.</p>"; }
-
-        document.getElementById('result-card').classList.remove('hidden');
-    }
-
-    function refreshUI() {
-        const db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
-        const today = new Date().toLocaleDateString();
-        const total = db.filter(i => i.date === today).reduce((s, i) => s + i.kcal, 0);
-        document.getElementById('total-kcal').innerText = total + " kcal";
-        const list = document.getElementById('history-list');
-        list.innerHTML = db.map(i => `
-            <div class="history-item">
-                <span><strong>${i.name}</strong><br><small>${i.time} • ${i.kcal} kcal</small></span>
-                <span style="font-weight:900; color:${i.grade < 'C' ? 'var(--green)' : 'var(--red)'}">${i.grade}</span>
-            </div>`).join('') || '<p style="text-align:center; opacity:0.5;">Noch keine Scans.</p>';
-    }
-
-    function closeResult() { document.getElementById('result-card').classList.add('hidden'); }
-    function exportData() {
-        const db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
-        let t = "📊 NUTRITION REPORT\n\n" + db.map(i => `- ${i.name}: ${i.kcal} kcal [Score: ${i.grade}]`).join('\n');
-        if (navigator.share) navigator.share({title: 'Report', text: t});
-        else { navigator.clipboard.writeText(t); alert("Kopiert!"); }
-    }
-</script>
-</body>
-</html>
