@@ -1,55 +1,213 @@
-<script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Nutrition AI Vision Pro + OCR</title>
+    
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #007AFF; --bg: #f5f5f7; --glass: rgba(255, 255, 255, 0.8);
+            --text: #1d1d1f; --green: #34c759; --red: #ff3b30; --warn: #ff9500;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root { --bg: #000000; --glass: rgba(28, 28, 30, 0.9); --text: #f5f5f7; }
+        }
 
-<style>
-    .ocr-overlay {
-        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,122,255,0.2); display: flex; align-items: center; justify-content: center;
-        color: white; font-weight: bold; pointer-events: none;
-    }
-    .analysis-card { border-left: 5px solid var(--warn); padding-left: 10px; margin: 10px 0; }
-</style>
+        body { 
+            font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; color: var(--text);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
 
-<div class="role-nav" style="margin-bottom: 10px;">
-    <button id="mode-barcode" class="active" onclick="setScanMode('barcode')">Barcode</button>
-    <button id="mode-text" onclick="setScanMode('text')">Inhaltsliste lesen</button>
+        header {
+            background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: env(safe-area-inset-top) 20px 20px; text-align: center;
+            position: sticky; top: 0; z-index: 100; border-bottom: 0.5px solid rgba(120,120,120,0.2);
+        }
+
+        .container { width: 92%; max-width: 440px; margin: 20px auto 40px; }
+
+        .card {
+            background: var(--glass); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border-radius: 25px; padding: 22px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 18px; border: 1px solid rgba(150,150,150,0.1);
+        }
+
+        .mode-switch { display: flex; gap: 10px; margin-bottom: 20px; }
+        .mode-btn { 
+            flex: 1; padding: 12px; border-radius: 12px; border: none; 
+            background: rgba(120,120,120,0.1); color: var(--text); font-weight: 600; cursor: pointer;
+        }
+        .mode-btn.active { background: var(--primary); color: white; }
+
+        #reader-wrapper { position: relative; width: 100%; background: #000; display: none; overflow: hidden; border-radius: 0 0 25px 25px; }
+        #reader { width: 100%; height: 350px; }
+
+        .btn { background: var(--primary); color: white; border: none; padding: 18px; border-radius: 18px; font-size: 1.1rem; font-weight: 700; width: 100%; cursor: pointer; }
+        
+        .ai-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
+        .feature-box { background: rgba(120,120,120,0.1); padding: 12px; border-radius: 18px; text-align: center; font-size: 0.8rem; }
+        
+        .allergy-warn { color: var(--red); font-weight: bold; background: rgba(255, 59, 48, 0.1); padding: 12px; border-radius: 15px; margin: 10px 0; font-size: 0.85rem; border: 1px solid var(--red); }
+        .additive-item { padding: 8px; border-bottom: 0.5px solid rgba(120,120,120,0.2); font-size: 0.85rem; }
+        .risk-high { color: var(--red); font-weight: bold; }
+        
+        .loading-ocr { display: none; text-align: center; padding: 20px; color: var(--primary); font-weight: bold; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<header><h1>NUTRITION VISION PRO</h1></header>
+
+<div class="container">
+    <div class="mode-switch">
+        <button id="btn-barcode" class="mode-btn active" onclick="setScanMode('barcode')">Barcode</button>
+        <button id="btn-text" class="mode-btn" onclick="setScanMode('text')">Inhaltsliste (OCR)</button>
+    </div>
+
+    <div id="reader-wrapper" class="card">
+        <div id="reader"></div>
+        <button onclick="stopScanner()" style="position:absolute; right:15px; top:15px; z-index:100; background:white; border-radius:50%; width:35px; height:35px; border:none;">✕</button>
+        <div id="ocr-trigger" class="hidden" style="position:absolute; bottom:20px; width:100%; text-align:center; z-index:101;">
+            <button class="btn" style="width:80%;" onclick="captureAndAnalyze()">Text jetzt scannen</button>
+        </div>
+    </div>
+
+    <div id="loading" class="loading-ocr">🔬 KI analysiert Text...</div>
+
+    <div id="result-card" class="card hidden">
+        <h2 id="res-name">Produkt-Analyse</h2>
+        <div class="ai-features">
+            <div class="feature-box"><span id="icon-nova">🍏</span><div id="text-nova">Natürlich</div></div>
+            <div class="feature-box"><span id="icon-vegan">🌿</span><div id="text-vegan">Check</div></div>
+        </div>
+        <div id="allergy-warn" class="allergy-warn hidden">⚠️ Allergene gefunden!</div>
+        <div id="additive-list-container"></div>
+        <button class="btn" style="background:#8e8e93; margin-top:15px;" onclick="closeResult()">Fertig</button>
+    </div>
+
+    <div class="card">
+        <h3>Verlauf (Top 50)</h3>
+        <div id="history-list"></div>
+    </div>
 </div>
 
 <script>
-    let scanMode = 'barcode';
+    let html5QrCode;
+    let currentScanMode = 'barcode';
+    const E_DB = {
+        "e102": {name:"Tartrazin", risk:"high", desc:"Farbstoff. Hyperaktivität möglich."},
+        "e250": {name:"Nitrit", risk:"high", desc:"Konservierung. Krebserregend."},
+        "e330": {name:"Zitronensäure", risk:"low", desc:"Unbedenklich."},
+        "e621": {name:"Glutamat", risk:"med", desc:"Geschmacksverstärker."},
+        "e951": {name:"Aspartam", risk:"med", desc:"Süßstoff."}
+    };
 
     function setScanMode(mode) {
-        scanMode = mode;
-        document.getElementById('mode-barcode').classList.toggle('active', mode === 'barcode');
-        document.getElementById('mode-text').classList.toggle('active', mode === 'text');
+        currentScanMode = mode;
+        document.getElementById('btn-barcode').classList.toggle('active', mode === 'barcode');
+        document.getElementById('btn-text').classList.toggle('active', mode === 'text');
+        if(html5QrCode) stopScanner();
     }
 
-    async function analyzeIngredientsText() {
-        // 1. Snapshot vom Video-Feed machen
-        const video = document.querySelector('#reader video');
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
+    async function startScanner() {
+        document.getElementById('reader-wrapper').style.display = 'block';
+        document.getElementById('ocr-trigger').classList.toggle('hidden', currentScanMode !== 'text');
+        html5QrCode = new Html5Qrcode("reader");
+        const config = { fps: 20, qrbox: 250 };
+        if(currentScanMode === 'barcode') {
+            await html5QrCode.start({ facingMode: "environment" }, config, onBarcodeFound);
+        } else {
+            await html5QrCode.start({ facingMode: "environment" }, config, () => {}); // Nur Video-Feed
+        }
+    }
 
-        // 2. OCR starten
-        Tesseract.recognize(canvas, 'deu', { logger: m => console.log(m) })
-            .then(({ data: { text } }) => {
-                evaluateText(text);
+    function stopScanner() {
+        if(html5QrCode) html5QrCode.stop().then(() => {
+            document.getElementById('reader-wrapper').style.display = 'none';
+        });
+    }
+
+    // --- BARCODE LOGIK ---
+    function onBarcodeFound(code) {
+        stopScanner();
+        fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,nutrition_grades,nova_group,additives_tags,allergens_tags`)
+            .then(r => r.json()).then(d => {
+                if(d.status === 1) processResult(d.product);
+                else alert("Nicht gefunden");
             });
     }
 
-    function evaluateText(text) {
-        const ingredients = text.toLowerCase();
-        let findings = [];
+    // --- OCR LOGIK (Inhaltsliste lesen) ---
+    async function captureAndAnalyze() {
+        document.getElementById('loading').style.display = 'block';
+        const video = document.querySelector('#reader video');
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
         
-        // Suche nach kritischen Begriffen
-        if(ingredients.includes("zucker")) findings.push("Viel Zucker");
-        if(ingredients.includes("palmfett") || ingredients.includes("palmöl")) findings.push("Palmfett (Umwelt)");
-        
-        // E-Nummern extrahieren
-        const eMatch = ingredients.match(/e\s?\d{3,4}/g);
-        if(eMatch) findings.push(...eMatch);
-
-        showOcrResult(findings, text);
+        const result = await Tesseract.recognize(canvas, 'deu');
+        analyzeText(result.data.text);
     }
+
+    function analyzeText(text) {
+        document.getElementById('loading').style.display = 'none';
+        stopScanner();
+        const lowerText = text.toLowerCase();
+        
+        // KI-Analyse des Textes
+        const foundAdditives = Object.keys(E_DB).filter(e => lowerText.includes(e));
+        const hasZucker = lowerText.includes("zucker") || lowerText.includes("sirup");
+        const hasPalmfett = lowerText.includes("palm");
+        
+        const resultData = {
+            product_name: "Text-Analyse",
+            nutrition_grades: hasZucker ? "d" : "b",
+            nova_group: lowerText.length > 100 ? 4 : 2,
+            additives_tags: foundAdditives.map(e => "en:"+e),
+            allergens_tags: lowerText.includes("nuss") || lowerText.includes("milch") ? ["en:milch"] : []
+        };
+        processResult(resultData);
+    }
+
+    function processResult(p) {
+        document.getElementById('res-name').innerText = p.product_name || "Unbekannt";
+        document.getElementById('icon-nova').innerText = p.nova_group == 4 ? "🏭" : "🍏";
+        document.getElementById('text-nova').innerText = p.nova_group == 4 ? "Hochverarbeitet" : "Natürlich";
+        
+        const allergens = p.allergens_tags || [];
+        document.getElementById('allergy-warn').classList.toggle('hidden', allergens.length === 0);
+
+        const list = document.getElementById('additive-list-container');
+        list.innerHTML = "<h4>Zusatzstoffe:</h4>";
+        (p.additives_tags || []).forEach(tag => {
+            const e = tag.replace('en:', '');
+            const info = E_DB[e] || {name: e.toUpperCase(), risk:"low", desc:"Zusatzstoff"};
+            list.innerHTML += `<div class="additive-item"><span class="risk-${info.risk}">${info.name}</span>: ${info.desc}</div>`;
+        });
+
+        document.getElementById('result-card').classList.remove('hidden');
+        saveToHistory(p);
+    }
+
+    function saveToHistory(p) {
+        let db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
+        db.unshift({name: p.product_name, date: new Date().toLocaleDateString()});
+        localStorage.setItem('nutritionDB', JSON.stringify(db.slice(0, 50)));
+        refreshHistory();
+    }
+
+    function refreshHistory() {
+        const db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
+        document.getElementById('history-list').innerHTML = db.map(i => `<div class="history-item"><b>${i.name}</b><small>${i.date}</small></div>`).join('');
+    }
+
+    function closeResult() { document.getElementById('result-card').classList.add('hidden'); }
+    window.onload = () => { refreshHistory(); startScanner(); };
 </script>
+</body>
+</html>
