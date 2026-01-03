@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>AI Nutrition Vision Pro</title>
+    <title>Nutrition AI Vision Pro</title>
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,7 +15,6 @@
             --primary: #007AFF; --bg: #f5f5f7; --glass: rgba(255, 255, 255, 0.8);
             --text: #1d1d1f; --green: #34c759; --red: #ff3b30; --warn: #ff9500;
         }
-
         @media (prefers-color-scheme: dark) {
             :root { --bg: #000000; --glass: rgba(28, 28, 30, 0.9); --text: #f5f5f7; }
         }
@@ -32,42 +31,28 @@
             position: sticky; top: 0; z-index: 100; border-bottom: 0.5px solid rgba(120,120,120,0.2);
         }
 
-        /* Kamera-Bereich */
-        #reader-wrapper { position: relative; width: 100%; overflow: hidden; background: #000; display: none; }
-        #reader { width: 100%; height: 320px; }
-
-        #close-scanner {
-            position: absolute; top: 20px; right: 20px; z-index: 1001;
-            background: rgba(0,0,0,0.6); color: white; border: none;
-            width: 44px; height: 44px; border-radius: 50%; font-size: 20px; cursor: pointer;
-        }
-
-        .container { width: 92%; max-width: 440px; margin: 20px auto 40px; position: relative; }
+        .container { width: 92%; max-width: 440px; margin: 20px auto 40px; }
 
         .card {
             background: var(--glass); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
-            border-radius: 30px; padding: 22px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-radius: 25px; padding: 22px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             margin-bottom: 18px; border: 1px solid rgba(150,150,150,0.1);
         }
 
         .stats-badge {
-            background: var(--primary); color: white; padding: 20px; border-radius: 25px;
-            text-align: center; transition: 0.3s;
+            background: var(--primary); color: white; padding: 25px; border-radius: 20px;
+            text-align: center;
         }
         .stats-badge big { font-size: 2.2rem; font-weight: 900; display: block; }
-        .over-limit { background: var(--warn) !important; animation: shake 0.5s; }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(5px); }
-            75% { transform: translateX(-5px); }
-        }
 
         .btn {
             background: var(--primary); color: white; border: none; padding: 18px;
-            border-radius: 20px; font-size: 1.1rem; font-weight: 700; width: 100%; cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,122,255,0.3);
+            border-radius: 18px; font-size: 1.1rem; font-weight: 700; width: 100%; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,122,255,0.2);
         }
+
+        #reader-wrapper { position: relative; width: 100%; background: #000; display: none; }
+        #reader { width: 100%; height: 320px; }
 
         .ai-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
         .feature-box {
@@ -76,15 +61,15 @@
         }
         .feature-box span { display: block; font-size: 1.2rem; margin-bottom: 4px; }
 
-        .history-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 0.5px solid rgba(120,120,120,0.1); }
-        
-        .hidden { display: none !important; }
+        .additive-item { padding: 12px; border-bottom: 0.5px solid rgba(120,120,120,0.2); font-size: 0.85rem; }
+        .risk-high { color: var(--red); font-weight: bold; }
+        .risk-med { color: var(--warn); font-weight: bold; }
+        .risk-low { color: var(--green); font-weight: bold; }
 
-        /* Modal für Zusatzstoffe */
-        #additive-modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.85); z-index: 2000; backdrop-filter: blur(10px);
-            display: flex; align-items: center; justify-content: center;
+        .hidden { display: none !important; }
+        .history-item { 
+            display: flex; justify-content: space-between; align-items: center;
+            margin-top: 10px; padding: 10px 0; border-bottom: 1px solid rgba(120,120,120,0.1); 
         }
     </style>
 </head>
@@ -93,19 +78,18 @@
 <header><h1>NUTRITION AI VISION PRO</h1></header>
 
 <div id="reader-wrapper">
-    <button id="close-scanner" onclick="stopScanner()">✕</button>
+    <button onclick="stopScanner()" style="position:absolute; right:20px; top:20px; z-index:100; background:rgba(0,0,0,0.6); color:white; border:none; border-radius:50%; width:40px; height:40px;">✕</button>
     <div id="reader"></div>
 </div>
 
 <div class="container">
     
-    <div id="dashboard" class="card">
+    <div class="card">
         <div id="kcal-badge" class="stats-badge">
             <small>KALORIEN HEUTE</small>
             <big id="total-kcal">0 kcal</big>
-            <small id="limit-info">Ziel: 2000 kcal</small>
         </div>
-        <button class="btn" style="margin-top: 25px;" onclick="startScanner()">Scanner starten</button>
+        <button class="btn" style="margin-top: 20px;" onclick="startScanner()">Scanner starten</button>
     </div>
 
     <div id="result-card" class="card hidden">
@@ -120,73 +104,52 @@
                 <span id="icon-nova">🏭</span>
                 <div id="text-nova">Verarbeitung</div>
             </div>
-            <div class="feature-box" onclick="showAdditiveDetails()" style="border: 1px solid var(--primary); cursor: pointer;">
-                <span id="icon-chem">🧪</span>
-                <div id="text-chem">Zusatzstoffe</div>
-                <small style="color:var(--primary);">Details ></small>
-            </div>
-            <div class="feature-box" style="grid-column: span 2;">
+            <div class="feature-box">
                 <span id="icon-vegan">🌿</span>
                 <div id="text-vegan">Inhalts-Check</div>
             </div>
         </div>
-        <button class="btn" style="background: #8e8e93; box-shadow: none;" onclick="closeResult()">Fertig</button>
+        
+        <div id="additive-info-section">
+            <h4 style="margin-bottom:5px; border-top: 1px solid rgba(120,120,120,0.2); padding-top: 10px;">Zusatzstoffe-Details:</h4>
+            <div id="additive-list-container"></div>
+        </div>
+
+        <button class="btn" style="background: #8e8e93; margin-top:20px; box-shadow: none;" onclick="closeResult()">Fertig</button>
     </div>
 
     <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0;">Verlauf</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0;">Verlauf (Top 50)</h3>
             <button onclick="exportData()" style="background:none; border:none; color:var(--primary); font-weight:700; cursor:pointer;">EXPORT</button>
         </div>
-        <div id="history-list" style="margin-top: 15px;"></div>
-    </div>
-</div>
-
-<div id="additive-modal" class="hidden">
-    <div class="card" style="width:85%; max-height:75%; overflow-y:auto; background: var(--bg);">
-        <h3 style="margin-top:0;">Zusatzstoff-Details</h3>
-        <div id="additive-details-list"></div>
-        <button class="btn" style="margin-top:20px;" onclick="document.getElementById('additive-modal').classList.add('hidden')">Schließen</button>
+        <div id="history-list"></div>
     </div>
 </div>
 
 <script>
     let html5QrCode;
-    const LIMIT = 2000;
-    let currentAdditives = [];
 
-    const ADDITIVE_INFO = {
-        "e300": { name: "Vitamin C (E300)", risk: "low", info: "Unbedenklich." },
-        "e330": { name: "Zitronensäure (E330)", risk: "low", info: "Meist unbedenklich." },
-        "e621": { name: "Glutamat (E621)", risk: "medium", info: "Kann Reaktionen auslösen." },
-        "e250": { name: "Natriumnitrit (E250)", risk: "high", info: "Potenziell krebserregend." },
-        "e102": { name: "Tartrazin (E102)", risk: "high", info: "Beeinflusst Kinder-Aktivität." },
-        "e951": { name: "Aspartam (E951)", risk: "medium", info: "Umstrittener Süßstoff." },
-        "e171": { name: "Titandioxid (E171)", risk: "high", info: "In EU-Lebensmitteln verboten." }
+    const E_DATABASE = {
+        "e300": { name: "Vitamin C", risk: "low", desc: "Unbedenklich (Antioxidans)." },
+        "e330": { name: "Zitronensäure", risk: "low", desc: "Natürliche Säure, unbedenklich." },
+        "e621": { name: "Glutamat", risk: "med", desc: "Geschmacksverstärker. Kann bei Empfindlichkeit Reaktionen auslösen." },
+        "e250": { name: "Natriumnitrit", risk: "high", desc: "Pökelsalz. Potenziell krebserregend." },
+        "e102": { name: "Tartrazin", risk: "high", desc: "Farbstoff. Kann Aktivität von Kindern beeinflussen." },
+        "e951": { name: "Aspartam", risk: "med", desc: "Künstlicher Süßstoff. Umstritten." },
+        "e171": { name: "Titandioxid", risk: "high", desc: "In EU-Lebensmitteln verboten." }
     };
 
     window.onload = refreshUI;
 
     async function startScanner() {
-        const wrapper = document.getElementById('reader-wrapper');
-        wrapper.style.display = 'block'; // Muss vor Initialisierung sichtbar sein
-        
+        document.getElementById('reader-wrapper').style.display = 'block';
         html5QrCode = new Html5Qrcode("reader");
-        const config = { fps: 20, qrbox: { width: 250, height: 250 } };
-
-        try {
-            await html5QrCode.start({ facingMode: "environment" }, config, onScan);
-        } catch (err) {
-            alert("Kamera-Fehler: Bitte sicherstellen, dass die Seite über HTTPS geladen wird.");
-            stopScanner();
-        }
+        await html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, onScan);
     }
 
     async function stopScanner() {
-        if (html5QrCode) {
-            try { await html5QrCode.stop(); } catch (e) {}
-            html5QrCode = null;
-        }
+        if (html5QrCode) await html5QrCode.stop();
         document.getElementById('reader-wrapper').style.display = 'none';
     }
 
@@ -197,61 +160,55 @@
             .then(data => {
                 if (data.status === 1) {
                     const p = data.product;
-                    currentAdditives = p.additives_tags || [];
                     const entry = {
                         name: p.product_name || "Unbekannt",
                         kcal: Math.round(p.nutriments?.['energy-kcal_100g'] || 0),
-                        grade: p.nutrition_grades || "c",
+                        grade: (p.nutrition_grades || "c").toUpperCase(),
                         nova: p.nova_group || "?",
-                        addCount: currentAdditives.length,
-                        tags: p.ingredients_analysis_tags || [],
+                        additives: p.additives_tags || [],
+                        isVegan: p.ingredients_analysis_tags?.includes('en:vegan'),
                         date: new Date().toLocaleDateString(),
                         time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
                     };
                     saveEntry(entry);
-                } else {
-                    alert("Produkt nicht gefunden.");
-                }
-            }).catch(() => alert("Netzwerkfehler."));
+                } else { alert("Produkt nicht gefunden."); }
+            });
     }
 
     function saveEntry(p) {
         let db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
         db.unshift(p);
-        localStorage.setItem('nutritionDB', JSON.stringify(db.slice(0, 20)));
+        localStorage.setItem('nutritionDB', JSON.stringify(db.slice(0, 50)));
         refreshUI();
         showResult(p);
     }
 
     function showResult(p) {
         document.getElementById('res-name').innerText = p.name;
-        document.getElementById('res-grade').innerText = p.grade.toUpperCase();
-        document.getElementById('res-grade').style.color = ['a','b'].includes(p.grade) ? 'var(--green)' : 'var(--red)';
+        document.getElementById('res-grade').innerText = p.grade;
+        document.getElementById('res-grade').style.color = p.grade < 'C' ? 'var(--green)' : 'var(--red)';
         document.getElementById('res-kcal-info').innerText = `${p.kcal} kcal pro 100g`;
 
-        document.getElementById('text-nova').innerText = p.nova == 4 ? "Hochverarbeitet" : "Natürlich";
+        document.getElementById('text-nova').innerText = p.nova == 4 ? "Hochverarbeitet" : "Natürlich/Gering";
         document.getElementById('icon-nova').innerText = p.nova == 4 ? "🏭" : "🍏";
-        document.getElementById('text-chem').innerText = `${p.addCount} Stoffe`;
-        document.getElementById('icon-chem').innerText = p.addCount > 4 ? "🧪" : "✅";
+        document.getElementById('text-vegan').innerText = p.isVegan ? "Vegan" : "Klassisch";
+        document.getElementById('icon-vegan').innerText = p.isVegan ? "🌿" : "🍖";
 
-        const vegan = p.tags.includes('en:vegan');
-        document.getElementById('text-vegan').innerText = vegan ? "Vegan" : "Klassisch";
-        document.getElementById('icon-vegan').innerText = vegan ? "🌿" : "🍖";
+        const listCont = document.getElementById('additive-list-container');
+        listCont.innerHTML = "";
+        
+        if (p.additives.length > 0) {
+            p.additives.forEach(tag => {
+                const eNum = tag.replace('en:', '').toLowerCase();
+                const info = E_DATABASE[eNum] || { name: eNum.toUpperCase(), risk: "low", desc: "Zusatzstoff ohne besondere Warnung." };
+                listCont.innerHTML += `
+                    <div class="additive-item">
+                        <span class="risk-${info.risk}">${info.name}</span>: ${info.desc}
+                    </div>`;
+            });
+        } else { listCont.innerHTML = "<p style='opacity:0.6'>Keine kritischen Zusatzstoffe.</p>"; }
 
         document.getElementById('result-card').classList.remove('hidden');
-    }
-
-    function showAdditiveDetails() {
-        const list = document.getElementById('additive-details-list');
-        list.innerHTML = currentAdditives.length ? currentAdditives.map(id => {
-            const e = id.replace('en:', '').toLowerCase();
-            const info = ADDITIVE_INFO[e] || { name: e.toUpperCase(), risk: "unknown", info: "Keine Detailinfos." };
-            const color = info.risk === 'high' ? 'var(--red)' : (info.risk === 'medium' ? 'var(--warn)' : 'var(--green)');
-            return `<div style="margin-bottom:12px; border-bottom:1px solid #ddd; padding-bottom:5px;">
-                        <b style="color:${color}">${info.name}</b><br><small>${info.info}</small>
-                    </div>`;
-        }).join('') : "<p>Keine Zusatzstoffe gelistet.</p>";
-        document.getElementById('additive-modal').classList.remove('hidden');
     }
 
     function refreshUI() {
@@ -259,13 +216,12 @@
         const today = new Date().toLocaleDateString();
         const total = db.filter(i => i.date === today).reduce((s, i) => s + i.kcal, 0);
         document.getElementById('total-kcal').innerText = total + " kcal";
-        document.getElementById('kcal-badge').className = total > LIMIT ? "stats-badge over-limit" : "stats-badge";
         
         const list = document.getElementById('history-list');
         list.innerHTML = db.map(i => `
             <div class="history-item">
-                <span><b>${i.name}</b><br><small>${i.time} • ${i.kcal} kcal</small></span>
-                <span style="font-weight:900; color:${['a','b'].includes(i.grade)?'var(--green)':'var(--red)'}">${i.grade.toUpperCase()}</span>
+                <span><strong>${i.name}</strong><br><small>${i.time} • ${i.kcal} kcal</small></span>
+                <span style="font-weight:900; color:${i.grade < 'C' ? 'var(--green)' : 'var(--red)'}">${i.grade}</span>
             </div>
         `).join('') || '<p style="opacity:0.5; text-align:center;">Noch keine Scans.</p>';
     }
@@ -274,10 +230,11 @@
 
     function exportData() {
         const db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
-        let t = "📊 KI-FOOD REPORT\n\n";
-        db.forEach(i => t += `- ${i.name}: ${i.kcal}kcal [${i.grade.toUpperCase()}]\n`);
-        if (navigator.share) navigator.share({title: 'Report', text: t});
-        else { navigator.clipboard.writeText(t); alert("Kopiert!"); }
+        if(db.length === 0) return alert("Keine Daten zum Exportieren.");
+        let t = "📊 NUTRITION VISION REPORT\n\n";
+        db.forEach(i => t += `- ${i.name}: ${i.kcal} kcal [Score: ${i.grade}] (Nova: ${i.nova})\n`);
+        if (navigator.share) navigator.share({title: 'Ernährungs-Report', text: t});
+        else { navigator.clipboard.writeText(t); alert("Report in Zwischenablage kopiert!"); }
     }
 </script>
 </body>
