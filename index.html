@@ -3,26 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nutrition AI Vision Pro - Final Fix</title>
+    <title>Nutrition AI Vision Pro - Ultimate Edition</title>
     
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
     
     <style>
         :root { --primary: #007AFF; --bg: #f5f5f7; --text: #1d1d1f; --green: #34c759; --red: #ff3b30; --warn: #ff9500; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; color: var(--text); }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 50px; }
+        header { background: white; padding: 20px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
         .container { width: 92%; max-width: 440px; margin: 20px auto; }
-        header { background: white; padding: 15px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         
-        #reader { width: 100%; border-radius: 20px; overflow: hidden; background: #000; }
+        #reader { width: 100%; border-radius: 25px; overflow: hidden; background: #000; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .btn { background: var(--primary); color: white; border: none; padding: 18px; border-radius: 18px; font-size: 1rem; font-weight: bold; width: 100%; cursor: pointer; margin-top: 10px; }
+        .card { background: white; border-radius: 25px; padding: 22px; margin-top: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
         
-        .card { background: white; border-radius: 25px; padding: 20px; margin-top: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
-        .status { text-align: center; padding: 10px; font-size: 0.8rem; color: var(--primary); font-weight: bold; }
-        
-        .additive-item { padding: 12px; border-bottom: 0.5px solid #eee; font-size: 0.9rem; line-height: 1.4; }
-        .risk-high { color: var(--red); } .risk-med { color: var(--warn); } .risk-low { color: var(--green); }
-        .summary { background: #f0f7ff; padding: 15px; border-radius: 15px; border-left: 5px solid var(--primary); margin: 15px 0; font-size: 0.95rem; }
+        .status { text-align: center; padding: 10px; font-size: 0.85rem; color: var(--primary); font-weight: 600; }
+        .score-badge { display: inline-block; padding: 5px 15px; border-radius: 10px; color: white; font-weight: bold; margin-bottom: 10px; }
+        .nova-4 { background: var(--red); }
+        .nova-1 { background: var(--green); }
+
+        .additive-item { padding: 12px; border-bottom: 0.5px solid #eee; font-size: 0.9rem; }
+        .risk-high { color: var(--red); font-weight: bold; }
+        .risk-med { color: var(--warn); font-weight: bold; }
+        .risk-low { color: var(--green); font-weight: bold; }
+
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 0.5px solid #ddd; font-size: 0.9rem; }
+        .hidden { display: none !important; }
+        canvas { display: none; }
     </style>
 </head>
 <body>
@@ -31,101 +39,148 @@
 
 <div class="container">
     <div id="reader"></div>
-    <div id="status" class="status">Kamera wird gestartet...</div>
+    <div id="status" class="status">Initialisiere Kamera...</div>
 
     <div id="controls">
-        <button id="btn-load" class="btn" style="background: var(--green);" onclick="initKI()">1. KI INITIALISIEREN</button>
-        <button id="btn-scan" class="btn hidden" onclick="scanNow()">2. TEXT ANALYSIEREN</button>
+        <button id="btn-load" class="btn" style="background: var(--green);" onclick="initKI()">1. KI-MODULE LADEN</button>
+        <button id="btn-scan" class="btn hidden" onclick="scanProcess()">2. TEXT JETZT ANALYSIEREN</button>
     </div>
 
     <div id="result" class="card hidden">
-        <h3 id="res-name">Analyse-Ergebnis</h3>
-        <div id="res-summary" class="summary"></div>
-        <div id="res-details"></div>
-        <button class="btn" style="background:#8e8e93;" onclick="location.reload()">Neu Scannen</button>
+        <h3 id="res-name" style="margin-top:0;">Detaillierte Analyse</h3>
+        <div id="res-nova-badge" class="score-badge">Nova Gruppe: ?</div>
+        <div id="res-summary" style="margin-bottom: 15px; font-weight: 500;"></div>
+        <div id="res-details-list"></div>
+        <button class="btn" style="background: #8e8e93;" onclick="closeResult()">Schließen</button>
+    </div>
+
+    <div class="card">
+        <h3 style="margin-top:0;">Verlauf (Letzte 50)</h3>
+        <div id="history-list"></div>
+        <button class="btn" style="background: #ff3b30; font-size: 0.8rem; padding: 10px;" onclick="clearHistory()">Verlauf löschen</button>
     </div>
 </div>
+
+<canvas id="preprocess-canvas"></canvas>
 
 <script>
     let html5QrCode;
     let worker = null;
 
-    // DIE MASTER-DATENBANK MIT ALLEN DETAILS
-    const DB = {
-        "e440": { name: "Pektin (E440)", risk: "low", info: "Detaillierte Info: Natürliches Geliermittel aus Äpfeln. Sehr gesund, wirkt als Ballaststoff und fördert die Verdauung." },
-        "pektin": { name: "Pektin", risk: "low", info: "Detaillierte Info: Pflanzlicher Stoff. Unbedenklich und gesund." },
-        "e621": { name: "Glutamat (E621)", risk: "high", info: "Detaillierte Info: Geschmacksverstärker. Kann bei empfindlichen Personen Kopfschmerzen auslösen und das Sättigungsgefühl stören." },
-        "e250": { name: "Nitritpökelsalz", risk: "high", info: "Detaillierte Info: Konservierungsmittel für Fleisch. Gilt als potenziell krebserregend beim Erhitzen." },
-        "e330": { name: "Zitronensäure", risk: "low", info: "Detaillierte Info: Natürliche Säure. Unbedenklich, schützt vor Verfärbungen." },
-        "zucker": { name: "Zucker / Sirup", risk: "med", info: "Detaillierte Info: Hoher Anteil an leeren Kalorien. Belastet den Insulinspiegel." },
-        "palm": { name: "Palmfett", risk: "med", info: "Detaillierte Info: Industrielles Fett. Kritisch für Herzgesundheit und Umwelt (Regenwald)." }
+    const INHALT_DB = {
+        "e440": { name: "Pektin (E440)", risk: "low", info: "Natürliches Geliermittel. Ballaststoffreich, fördert die Verdauung. Nova 1-2." },
+        "pektin": { name: "Pektin", risk: "low", info: "Pflanzlich. Unbedenklich und gesund." },
+        "maltodextrin": { name: "Maltodextrin", risk: "med", info: "Versteckter Zucker. Lässt Blutzucker schnell steigen. Nova 4." },
+        "dextrose": { name: "Dextrose", risk: "med", info: "Einfachzucker. Belastet Bauchspeicheldrüse. Nova 4." },
+        "glukose": { name: "Glukosesirup", risk: "med", info: "Industrieller Zucker. Billiger Füllstoff. Nova 4." },
+        "e621": { name: "Glutamat (E621)", risk: "high", info: "Geschmacksverstärker. Stört Sättigungsgefühl. Nova 4." },
+        "e250": { name: "Nitrit", risk: "high", info: "Pökelsalz. Potenziell krebserregend. Nova 4." },
+        "palm": { name: "Palmfett / Palmöl", risk: "med", info: "Industrielles Fett. Bedenklich für Umwelt & Herz. Nova 4." }
     };
 
-    // 1. Kamera starten
-    function startCam() {
+    function startCamera() {
         html5QrCode = new Html5Qrcode("reader");
         html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, () => {});
-        document.getElementById('status').innerText = "Kamera aktiv. Halte den Text ruhig davor.";
+        document.getElementById('status').innerText = "Kamera bereit. Bitte KI laden.";
+        renderHistory();
     }
 
-    // 2. KI laden
     async function initKI() {
-        document.getElementById('status').innerText = "Lade KI-Gehirn (bitte warten)...";
+        document.getElementById('status').innerText = "KI lädt Sprachpaket...";
         worker = await Tesseract.createWorker('deu');
         document.getElementById('btn-load').classList.add('hidden');
         document.getElementById('btn-scan').classList.remove('hidden');
-        document.getElementById('status').innerText = "KI BEREIT! Jetzt Text scannen.";
+        document.getElementById('status').innerText = "KI BEREIT! Text fokussieren.";
     }
 
-    // 3. Den eigentlichen Scan durchführen
-    async function scanNow() {
-        document.getElementById('status').innerText = "KI liest den Text... bitte nicht bewegen!";
+    async function scanProcess() {
+        document.getElementById('status').innerText = "KI analysiert Inhaltsstoffe...";
         const video = document.querySelector('video');
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
+        const canvas = document.getElementById('preprocess-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = video.videoWidth * 1.5;
+        canvas.height = video.videoHeight * 1.5;
+        ctx.filter = 'grayscale(1) contrast(1.4)';
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
         try {
             const { data: { text } } = await worker.recognize(canvas);
-            analyzeText(text);
-        } catch (e) {
-            alert("Fehler beim Lesen. Bitte näher ran!");
-        }
+            analyzeContent(text);
+        } catch (e) { alert("Scan-Fehler."); }
     }
 
-    // 4. Den Text mit der Datenbank abgleichen
-    function analyzeText(rawText) {
+    function analyzeContent(rawText) {
         const text = rawText.toLowerCase();
-        console.log("Gelesen:", text); // Debugging im Browser-Log
-        
-        let foundAny = false;
-        let detailsHtml = "<h4>Gefundene Stoffe:</h4>";
-        let score = "Gut";
+        let foundItems = [];
+        let novaScore = 1;
 
-        // Datenbank-Abgleich
-        for (let key in DB) {
+        for (let key in INHALT_DB) {
             if (text.includes(key)) {
-                foundAny = true;
-                const item = DB[key];
-                const riskClass = "risk-" + item.risk;
-                detailsHtml += `<div class="additive-item"><b class="${riskClass}">${item.name}</b><br>${item.info}</div>`;
-                if(item.risk === 'high') score = "Kritisch";
+                foundItems.push(INHALT_DB[key]);
+                if (INHALT_DB[key].risk !== 'low') novaScore = 4;
             }
         }
 
-        if (!foundAny) {
-            detailsHtml += "<p>Keine bekannten Zusatzstoffe im Scan erkannt. Probiere es näher oder mit mehr Licht.</p>";
-        }
+        const scanResult = {
+            name: "Text-Analyse " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+            nova: novaScore,
+            items: foundItems,
+            fullText: text.substring(0, 100),
+            date: new Date().toLocaleDateString()
+        };
 
-        // Anzeige
-        document.getElementById('result').classList.remove('hidden');
-        document.getElementById('res-summary').innerHTML = `<b>Gesamt-Urteil: ${score}</b><br>Basierend auf dem Text-Scan der Inhaltsstoffe.`;
-        document.getElementById('res-details').innerHTML = detailsHtml;
-        document.getElementById('status').innerText = "Analyse abgeschlossen!";
+        saveToHistory(scanResult);
+        displayResults(scanResult);
     }
 
-    window.onload = startCam;
+    function displayResults(res) {
+        const resCard = document.getElementById('result');
+        const detailsList = document.getElementById('res-details-list');
+        resCard.classList.remove('hidden');
+        detailsList.innerHTML = "";
+        
+        document.getElementById('res-nova-badge').innerText = `Nova Gruppe: ${res.nova}`;
+        document.getElementById('res-nova-badge').className = `score-badge ${res.nova === 4 ? 'nova-4' : 'nova-1'}`;
+        document.getElementById('res-summary').innerText = res.nova === 4 ? "⚠️ Industriell verarbeitet." : "🍏 Naturbelassen.";
+
+        if (res.items.length > 0) {
+            res.items.forEach(item => {
+                detailsList.innerHTML += `<div class="additive-item"><span class="risk-${item.risk}">${item.name}</span><br><small>${item.info}</small></div>`;
+            });
+        } else {
+            detailsList.innerHTML = `<p style='font-size:0.8rem; color:#666;'>Keine Treffer im Text: "${res.fullText}..."</p>`;
+        }
+        document.getElementById('status').innerText = "Fertig.";
+    }
+
+    function saveToHistory(entry) {
+        let history = JSON.parse(localStorage.getItem('nutritionHistory')) || [];
+        history.unshift(entry);
+        localStorage.setItem('nutritionHistory', JSON.stringify(history.slice(0, 50)));
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const history = JSON.parse(localStorage.getItem('nutritionHistory')) || [];
+        const list = document.getElementById('history-list');
+        list.innerHTML = history.map(item => `
+            <div class="history-item">
+                <span><b>${item.name}</b><br><small>${item.date}</small></span>
+                <span class="score-badge ${item.nova === 4 ? 'nova-4' : 'nova-1'}" style="margin:0; font-size:0.7rem;">Nova ${item.nova}</span>
+            </div>
+        `).join('') || '<p style="opacity:0.5; text-align:center;">Noch keine Scans gespeichert.</p>';
+    }
+
+    function clearHistory() {
+        if(confirm("Verlauf wirklich löschen?")) {
+            localStorage.removeItem('nutritionHistory');
+            renderHistory();
+        }
+    }
+
+    function closeResult() { document.getElementById('result').classList.add('hidden'); }
+
+    window.onload = startCamera;
 </script>
 </body>
 </html>
