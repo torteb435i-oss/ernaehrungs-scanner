@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Nutrition Vision Pro - Expert Edition</title>
+    <title>Nutrition AI Vision Pro - Expert</title>
     
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
@@ -17,28 +17,34 @@
             :root { --bg: #000000; --glass: rgba(28, 28, 30, 0.9); --text: #f5f5f7; }
         }
 
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; color: var(--text); }
-        .container { width: 92%; max-width: 440px; margin: 20px auto; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; color: var(--text); overflow-x: hidden; }
         header { background: var(--glass); backdrop-filter: blur(20px); padding: 20px; text-align: center; border-bottom: 0.5px solid rgba(120,120,120,0.2); position: sticky; top: 0; z-index: 100; }
+        
+        .container { width: 92%; max-width: 440px; margin: 20px auto; padding-bottom: 50px; }
+        
         .mode-switch { display: flex; gap: 8px; margin-bottom: 15px; background: rgba(120,120,120,0.1); padding: 5px; border-radius: 14px; }
-        .mode-btn { flex: 1; padding: 12px; border-radius: 10px; border: none; background: none; font-weight: 600; cursor: pointer; }
+        .mode-btn { flex: 1; padding: 12px; border-radius: 10px; border: none; background: none; font-weight: 600; cursor: pointer; color: var(--text); }
         .mode-btn.active { background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: var(--primary); }
 
-        #reader-wrapper { width: 100%; border-radius: 25px; overflow: hidden; background: #000; position: relative; }
+        #reader-wrapper { width: 100%; border-radius: 25px; overflow: hidden; background: #000; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         #reader { width: 100%; }
-        
+        #status-bar { padding: 10px; text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--primary); }
+
         .btn { background: var(--primary); color: white; border: none; padding: 18px; border-radius: 18px; font-size: 1rem; font-weight: 700; width: 100%; cursor: pointer; margin-top: 10px; }
-        .card { background: var(--glass); backdrop-filter: blur(30px); border-radius: 25px; padding: 22px; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .card { background: var(--glass); backdrop-filter: blur(30px); border-radius: 25px; padding: 22px; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid rgba(150,150,150,0.1); }
 
         .score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 15px 0; }
         .score-box { background: rgba(120,120,120,0.08); padding: 15px; border-radius: 18px; text-align: center; }
         
-        .additive-item { padding: 10px; border-bottom: 0.5px solid rgba(120,120,120,0.1); font-size: 0.85rem; }
+        .summary-box { background: rgba(0, 122, 255, 0.1); border-left: 5px solid var(--primary); padding: 15px; border-radius: 12px; margin: 15px 0; font-size: 0.9rem; line-height: 1.4; }
+        
+        .additive-item { padding: 12px; border-bottom: 0.5px solid rgba(120,120,120,0.1); font-size: 0.85rem; }
         .risk-high { color: var(--red); font-weight: bold; }
         .risk-med { color: var(--warn); font-weight: bold; }
         .risk-low { color: var(--green); font-weight: bold; }
         
         .hidden { display: none !important; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding: 10px 0; border-bottom: 1px solid rgba(120,120,120,0.1); font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -53,6 +59,7 @@
 
     <div id="reader-wrapper">
         <div id="reader"></div>
+        <div id="status-bar">Kamera bereit</div>
         <div id="ocr-controls" class="hidden" style="padding: 15px;">
             <button id="load-ocr-btn" class="btn" style="background:#34c759" onclick="prepareAI()">1. KI laden</button>
             <button id="scan-ocr-btn" class="btn hidden" onclick="runOCR()">2. Text analysieren</button>
@@ -61,15 +68,31 @@
 
     <div id="result-card" class="card hidden">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h2 id="res-title">Produkt</h2>
+            <h2 id="res-title" style="margin:0; font-size:1.3rem;">Produkt</h2>
             <div id="res-grade" style="font-size:2.5rem; font-weight:900;">-</div>
         </div>
+
         <div class="score-grid">
-            <div class="score-box"><big id="res-nova">🏭</big><br><small id="res-nova-text">Verarbeitung</small></div>
+            <div class="score-box"><big id="res-nova">🍏</big><br><small id="res-nova-text">Natur</small></div>
             <div class="score-box"><big id="res-health">⚖️</big><br><small id="res-health-text">Status</small></div>
         </div>
-        <div id="additive-list"></div>
-        <button class="btn" style="background:#8e8e93; margin-top:20px;" onclick="document.getElementById('result-card').classList.add('hidden')">Schließen</button>
+
+        <div id="res-summary" class="summary-box"></div>
+
+        <div id="details-section">
+            <h4 style="margin: 15px 0 5px;">Inhalts-Analyse:</h4>
+            <div id="additive-list"></div>
+        </div>
+
+        <button class="btn" style="background:#8e8e93; margin-top:20px;" onclick="closeResult()">Schließen</button>
+    </div>
+
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0;">Verlauf (Letzte 50)</h3>
+            <button onclick="exportHistory()" style="background:none; border:none; color:var(--primary); font-weight:bold; cursor:pointer;">EXPORT</button>
+        </div>
+        <div id="history-list"></div>
     </div>
 </div>
 
@@ -78,98 +101,81 @@
     let ocrWorker = null;
     let mode = 'barcode';
 
-    // DIE ERWEITERTE EXPERTEN-DATENBANK
+    // DEEP ANALYSIS DATENBANK (E-Nummern & Klarnamen)
     const NUTRITION_DB = {
-        // Verdickungsmittel & Geliermittel
-        "e440": { name: "Pektin", risk: "low", desc: "Pflanzliches Geliermittel aus Früchten. Sehr gesund." },
-        "e412": { name: "Guarkernmehl", risk: "low", desc: "Pflanzlich. Ballaststoffreich, unbedenklich." },
-        "e415": { name: "Xanthan", risk: "low", desc: "Natürliches Verdickungsmittel." },
-        "e407": { name: "Carrageen", risk: "med", desc: "Algenextrakt. Steht im Verdacht, Entzündungen im Darm zu fördern." },
-        
-        // Farbstoffe (Süßigkeiten)
-        "e120": { name: "Echtes Karmin", risk: "med", desc: "Roter Farbstoff aus Läusen. Nicht vegan." },
-        "e160a": { name: "Beta-Carotin", risk: "low", desc: "Natürlicher Farbstoff (Vorstufe Vitamin A)." },
-        "e102": { name: "Tartrazin", risk: "high", desc: "Künstliches Gelb. Warnhinweis für Kinder nötig." },
-        "e129": { name: "Allurarot AC", risk: "high", desc: "Azofarbstoff. Kann Allergien auslösen." },
-        
-        // Süßstoffe & Zuckerersatz
-        "e951": { name: "Aspartam", risk: "med", desc: "Süßstoff. Enthält Phenylalanin. Umstritten." },
-        "e955": { name: "Sucralose", risk: "low", desc: "Süßstoff aus Zucker, kalorienfrei." },
-        "e420": { name: "Sorbit", risk: "low", desc: "Zuckeraustauschstoff. Kann bei Übermaß abführend wirken." },
-        
-        // Konservierung & Säuerung
-        "e250": { name: "Nitritpökelsalz", risk: "high", desc: "Kritisch. Potenziell krebserregend." },
-        "e202": { name: "Kaliumsorbat", risk: "low", desc: "Häufiger Schutz gegen Schimmelpilze." },
-        "e330": { name: "Zitronensäure", risk: "low", desc: "Natürliche Säure, unbedenklich." }
+        "e440": { name: "Pektin", risk: "low", desc: "Pflanzliches Geliermittel aus Früchten. Sehr gesund & ballaststoffreich." },
+        "e412": { name: "Guarkernmehl", risk: "low", desc: "Pflanzliches Verdickungsmittel. Gut verträglich." },
+        "e415": { name: "Xanthan", risk: "low", desc: "Natürlicher Mehrfachzucker. Unbedenklich." },
+        "e621": { name: "Glutamat", risk: "med", desc: "Geschmacksverstärker. Kann Sättigungsgefühl stören." },
+        "e250": { name: "Nitritpökelsalz", risk: "high", desc: "Kritisch. Potenziell krebserregend in Fleisch." },
+        "e171": { name: "Titandioxid", risk: "high", desc: "In EU verboten. Kann Darmbarriere schädigen." },
+        "e330": { name: "Zitronensäure", risk: "low", desc: "Natürliche Säure, unbedenklich." },
+        "e951": { name: "Aspartam", risk: "med", desc: "Süßstoff. Umstritten bei hohem Konsum." },
+        "e102": { name: "Tartrazin", risk: "high", desc: "Farbstoff. Kann Hyperaktivität fördern." },
+        "e407": { name: "Carrageen", risk: "med", desc: "Algenextrakt. Steht im Verdacht, Darmreizungen zu fördern." },
+        "maltodextrin": { name: "Maltodextrin", risk: "med", desc: "Industriezucker. Lässt Insulin schnell steigen." },
+        "palm": { name: "Industriefett", risk: "med", desc: "Palmfett/Öl. Schlecht für Herz & Umwelt." }
     };
 
     async function initCamera() {
         if (scanner) await scanner.stop();
         scanner = new Html5Qrcode("reader");
         const config = { fps: 15, qrbox: { width: 250, height: 180 } };
+        
         if (mode === 'barcode') {
             document.getElementById('ocr-controls').classList.add('hidden');
-            scanner.start({ facingMode: "environment" }, config, (c) => {
-                fetch(`https://world.openfoodfacts.org/api/v2/product/${c}.json?fields=product_name,nutrition_grades,nova_group,additives_tags`)
+            scanner.start({ facingMode: "environment" }, config, (code) => {
+                fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,nutrition_grades,nova_group,additives_tags,allergens_tags`)
                 .then(r => r.json()).then(d => { if(d.status === 1) buildAnalysis(d.product); });
             });
         } else {
             document.getElementById('ocr-controls').classList.remove('hidden');
-            scanner.start({ facingMode: "environment" }, config, () => {});
+            scanner.start({ facingMode: "environment" }, config, () => {}); 
         }
     }
 
     async function prepareAI() {
+        document.getElementById('status-bar').innerText = "KI-Daten werden geladen...";
         ocrWorker = await Tesseract.createWorker('deu');
         document.getElementById('load-ocr-btn').classList.add('hidden');
         document.getElementById('scan-ocr-btn').classList.remove('hidden');
+        document.getElementById('status-bar').innerText = "KI bereit!";
     }
 
     async function runOCR() {
+        document.getElementById('status-bar').innerText = "Lese Inhaltsstoffe...";
         const video = document.querySelector('video');
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth; canvas.height = video.videoHeight;
         canvas.getContext('2d').drawImage(video, 0, 0);
+
         const { data: { text } } = await ocrWorker.recognize(canvas);
         const lower = text.toLowerCase();
-
-        // ERKENNUNG VON NUMMER ODER NAME
-        const foundTags = [];
+        
+        const found = [];
         Object.keys(NUTRITION_DB).forEach(key => {
             if (lower.includes(key) || lower.includes(NUTRITION_DB[key].name.toLowerCase())) {
-                foundTags.push("en:" + key);
+                found.push("en:" + (key.startsWith('e') ? key : 'custom_' + key));
             }
         });
 
         buildAnalysis({
             product_name: "Text-Analyse",
-            nutrition_grades: lower.includes("zucker") ? "d" : "b",
-            nova_group: foundTags.length > 2 ? 4 : 2,
-            additives_tags: foundTags
+            nutrition_grades: (lower.includes("zucker") || lower.includes("sirup")) ? "d" : "b",
+            nova_group: found.length > 2 ? 4 : 2,
+            additives_tags: found,
+            isOCR: true
         });
     }
 
     function buildAnalysis(p) {
         document.getElementById('result-card').classList.remove('hidden');
         document.getElementById('res-title').innerText = p.product_name || "Unbekannt";
+        
         const grade = (p.nutrition_grades || "c").toUpperCase();
         document.getElementById('res-grade').innerText = grade;
         document.getElementById('res-grade').style.color = grade <= 'B' ? 'var(--green)' : (grade >= 'D' ? 'var(--red)' : 'var(--warn)');
-        
+
         const nova = p.nova_group || 3;
         document.getElementById('res-nova').innerText = nova >= 4 ? "🏭" : "🍏";
-        
-        const list = document.getElementById('additive-list');
-        list.innerHTML = "<h4>Inhalts-Analyse:</h4>";
-        (p.additives_tags || []).forEach(tag => {
-            const code = tag.replace('en:', '').toLowerCase();
-            const info = NUTRITION_DB[code] || { name: code.toUpperCase(), risk: "low", desc: "Zusatzstoff." };
-            list.innerHTML += `<div class="additive-item"><span class="risk-${info.risk}">${info.name}</span>: ${info.desc}</div>`;
-        });
-    }
-
-    function setMode(m) { mode = m; initCamera(); }
-    window.onload = initCamera;
-</script>
-</body>
-</html>
+        document.getElementById('res-nova-text').innerText = nova >= 4
