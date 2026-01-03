@@ -3,172 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nutrition AI Pro - Fixed</title>
+    <title>Nutrition Vision Pro - Ultra Edition</title>
     
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
     
     <style>
-        :root { --primary: #007AFF; --bg: #f5f5f7; --text: #1d1d1f; --green: #34c759; --red: #ff3b30; --warn: #ff9500; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; color: var(--text); }
-        .container { width: 92%; max-width: 440px; margin: 20px auto; padding-bottom: 40px; }
-        header { background: white; padding: 15px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        :root { 
+            --primary: #007AFF; --bg: #f2f2f7; --text: #1c1c1e; 
+            --green: #34c759; --red: #ff3b30; --warn: #ff9500; --card: #ffffff;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root { --bg: #000000; --text: #ffffff; --card: #1c1c1e; }
+        }
+
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; color: var(--text); }
+        header { background: var(--card); padding: 25px 20px; text-align: center; box-shadow: 0 2px 15px rgba(0,0,0,0.1); border-bottom: 0.5px solid #333; }
         
-        #reader-container { width: 100%; border-radius: 20px; overflow: hidden; background: #000; position: relative; min-height: 250px; }
+        .container { width: 92%; max-width: 480px; margin: 20px auto; padding-bottom: 60px; }
+        
+        #reader-container { 
+            width: 100%; border-radius: 28px; overflow: hidden; background: #000; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3); position: relative; border: 3px solid var(--primary);
+        }
         #reader { width: 100%; }
         
-        .mode-nav { display: flex; gap: 10px; margin: 15px 0; }
-        .mode-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; background: #ddd; font-weight: bold; cursor: pointer; }
-        .mode-btn.active { background: var(--primary); color: white; }
+        .status-bar { padding: 12px; text-align: center; font-weight: 700; color: var(--primary); font-size: 0.9rem; letter-spacing: 0.5px; }
 
-        .btn { background: var(--primary); color: white; border: none; padding: 16px; border-radius: 15px; font-size: 1rem; font-weight: bold; width: 100%; cursor: pointer; margin-top: 10px; }
-        .card { background: white; border-radius: 20px; padding: 20px; margin-top: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .btn { 
+            background: var(--primary); color: white; border: none; padding: 20px; 
+            border-radius: 20px; font-size: 1.1rem; font-weight: 800; width: 100%; 
+            cursor: pointer; transition: transform 0.2s; margin-top: 15px;
+        }
+        .btn:active { transform: scale(0.98); }
+
+        /* Detail-Karten Design */
+        .analysis-card { background: var(--card); border-radius: 24px; padding: 22px; margin-top: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         
-        .status { text-align: center; padding: 10px; font-size: 0.8rem; font-weight: bold; color: var(--primary); }
-        .additive-item { padding: 10px 0; border-bottom: 0.5px solid #eee; font-size: 0.85rem; }
-        .risk-high { color: var(--red); } .risk-med { color: var(--warn); } .risk-low { color: var(--green); }
+        .ingredient-box { 
+            padding: 16px; border-radius: 18px; margin-bottom: 15px; 
+            background: rgba(120,120,120,0.05); border-left: 8px solid #ccc;
+        }
+        .risk-low { border-left-color: var(--green); }
+        .risk-med { border-left-color: var(--warn); }
+        .risk-high { border-left-color: var(--red); }
+
+        .tag-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .tag-name { font-weight: 900; font-size: 1.1rem; }
+        .tag-type { font-size: 0.75rem; text-transform: uppercase; font-weight: 700; opacity: 0.6; }
+        .tag-desc { font-size: 0.95rem; line-height: 1.5; opacity: 0.9; }
+
+        .summary-badge { display: block; text-align: center; padding: 10px; border-radius: 12px; font-weight: 800; margin-bottom: 20px; }
         
-        .history-item { padding: 10px; border-bottom: 1px solid #eee; font-size: 0.8rem; display: flex; justify-content: space-between; }
         .hidden { display: none !important; }
+        #canvas-buffer { display: none; }
     </style>
 </head>
 <body>
 
-<header><strong>NUTRITION AI VISION</strong></header>
+<header><h1>NUTRITION VISION PRO <span style="font-size: 0.6rem; vertical-align: middle; background: var(--red); padding: 3px 6px; border-radius: 4px;">ULTRA</span></h1></header>
 
 <div class="container">
-    <div class="mode-nav">
-        <button id="nav-barcode" class="mode-btn active" onclick="switchMode('barcode')">BARCODE</button>
-        <button id="nav-text" class="mode-btn" onclick="switchMode('text')">ZUTATEN-SCAN</button>
-    </div>
-
     <div id="reader-container">
         <div id="reader"></div>
-        <div id="ocr-btn-container" class="hidden" style="position: absolute; bottom: 10px; width: 100%; text-align: center; z-index: 10;">
-            <button class="btn" style="width: 80%; background: var(--green);" onclick="captureAndOCR()">JETZT TEXT ANALYSIEREN</button>
-        </div>
+        <div class="status-bar" id="status">INITIALISIERE KI-OPTIC...</div>
     </div>
     
-    <div id="status" class="status">Kamera wird geladen...</div>
+    <button id="scan-btn" class="btn" onclick="performDeepAnalysis()">JETZT TIEFEN-SCAN STARTEN</button>
 
-    <div id="result-card" class="card hidden">
-        <h3 id="res-title" style="margin:0;">Analyse</h3>
-        <p id="res-summary" style="font-weight:bold;"></p>
-        <div id="res-details"></div>
-        <button class="btn" style="background:#8e8e93;" onclick="closeResult()">Schließen</button>
-    </div>
-
-    <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h4 style="margin:0;">VERLAUF</h4>
-            <button onclick="exportData()" style="background:none; border:none; color:var(--primary); font-weight:bold;">EXPORT</button>
-        </div>
-        <div id="history-list"></div>
+    <div id="result" class="analysis-card hidden">
+        <div id="health-summary" class="summary-badge"></div>
+        <h3 style="margin-top:0;">Gefundene Inhaltsstoffe:</h3>
+        <div id="details-list"></div>
+        <button class="btn" style="background:#8e8e93;" onclick="closeResult()">NEUER SCAN</button>
     </div>
 </div>
 
-<script>
-    let scanner;
-    let worker;
-    let currentMode = 'barcode';
+<canvas id="canvas-buffer"></canvas>
 
-    const DB = {
-        "e440": { name: "Pektin (E440)", risk: "low", info: "Natürlicher Ballaststoff. Sehr gesund." },
-        "pektin": { name: "Pektin", risk: "low", info: "Pflanzlich. Unbedenklich." },
-        "maltodextrin": { name: "Maltodextrin", risk: "med", info: "Versteckter Zucker. Belastet Insulinstatus." },
-        "e621": { name: "Glutamat", risk: "high", info: "Geschmacksverstärker. Kann Sättigung stören." },
-        "palm": { name: "Palmfett", risk: "med", info: "Industriefett. Bedenklich für Herz/Umwelt." }
+<script>
+    let html5QrCode;
+    let worker;
+
+    // DIE ULTIMATIVE KLARTEXT-DATENBANK
+    const MASTER_DB = {
+        // ZUCKER-FALLEN
+        "maltodextrin": { name: "Maltodextrin", type: "Tarn-Zucker", risk: "med", desc: "Hochverarbeitete Stärke. Lässt den Blutzucker massiv ansteigen, fördert Heißhunger." },
+        "dextrose": { name: "Dextrose", type: "Einfachzucker", risk: "med", desc: "Traubenzucker. Belastet die Bauchspeicheldrüse und liefert leere Kalorien." },
+        "glukose": { name: "Glukose-Sirup", type: "Industrie-Süße", risk: "high", desc: "Billiger Füllstoff. Verursacht schnelle Fetteinlagerung in der Leber." },
+        "sucralose": { name: "Sucralose (E955)", type: "Süßstoff", risk: "low", desc: "Kalorienfrei. Zähne-schonend, aber täuscht dem Gehirn Energie vor." },
+        
+        // FETT-FALLEN
+        "palm": { name: "Palmfett / Öl", type: "Industriefett", risk: "high", desc: "Enthält viele gesättigte Fettsäuren. Schlecht für Herz & Regenwald." },
+        "gehärtet": { name: "Gehärtete Fette", type: "Trans-Fette", risk: "high", desc: "Sehr ungesund. Erhöht das Risiko für Gefäßverkalkung deutlich." },
+
+        // ZUSATZSTOFFE (E-NUMMERN) IM KLARTEXT
+        "e440": { name: "Pektin (E440)", type: "Geliermittel", risk: "low", desc: "Aus Äpfeln gewonnen. Ein gesunder Ballaststoff für die Darmflora." },
+        "e322": { name: "Lecithin (E322)", type: "Emulgator", risk: "low", desc: "Wichtiger Stoff für Gehirn & Nerven. Bindet Fett und Wasser perfekt." },
+        "e621": { name: "Glutamat (E621)", type: "Verstärker", risk: "high", desc: "Neurotransmitter-Trick. Schaltet das natürliche Sättigungsgefühl aus." },
+        "e250": { name: "Nitrit (E250)", type: "Konservierung", risk: "high", desc: "Pökelsalz. Kann krebserregende Nitrosamine bilden. Meiden!" },
+        "e412": { name: "Guarkernmehl", type: "Verdickung", risk: "low", desc: "Pflanzlich. Sättigt gut, aber Vorsicht bei empfindlichem Magen." }
     };
 
     async function init() {
-        if(scanner) await scanner.stop();
-        scanner = new Html5Qrcode("reader");
-        renderHistory();
+        html5QrCode = new Html5Qrcode("reader");
+        await html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 280 }, () => {});
+        document.getElementById('status').innerText = "KI-OPTIC AKTIV: TEXT FOKUSSIEREN";
+        worker = await Tesseract.createWorker('deu');
+    }
+
+    async function performDeepAnalysis() {
+        const status = document.getElementById('status');
+        status.innerText = "ERFASSE BILDDATEN...";
         
-        const config = { fps: 10, qrbox: { width: 250, height: 150 } };
+        const video = document.querySelector('video');
+        const canvas = document.getElementById('canvas-buffer');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
         
-        if(currentMode === 'barcode') {
-            document.getElementById('ocr-btn-container').classList.add('hidden');
-            scanner.start({ facingMode: "environment" }, config, (decodedText) => {
-                fetch(`https://world.openfoodfacts.org/api/v2/product/${decodedText}.json`)
-                .then(r => r.json()).then(d => { if(d.status === 1) processResult(d.product.product_name, d.product.additives_tags || []); });
-            });
-            document.getElementById('status').innerText = "Bereit für Barcode...";
-        } else {
-            document.getElementById('ocr-btn-container').classList.remove('hidden');
-            scanner.start({ facingMode: "environment" }, config, () => {});
-            if(!worker) {
-                document.getElementById('status').innerText = "KI lädt...";
-                worker = await Tesseract.createWorker('deu');
-                document.getElementById('status').innerText = "Text-Scan bereit!";
+        // Bildoptimierung für OCR (Kontrast & Schärfe)
+        ctx.filter = 'contrast(1.4) grayscale(1)';
+        ctx.drawImage(video, 0, 0);
+
+        status.innerText = "KI ANALYSIERT TEXTSTRUKTUR...";
+        const { data: { text } } = await worker.recognize(canvas);
+        
+        analyze(text.toLowerCase());
+    }
+
+    function analyze(rawText) {
+        const detailsList = document.getElementById('details-list');
+        const summary = document.getElementById('health-summary');
+        detailsList.innerHTML = "";
+        let found = [];
+        let maxRisk = 'low';
+
+        // Check gegen Datenbank
+        for (let key in MASTER_DB) {
+            if (rawText.includes(key)) {
+                found.push(MASTER_DB[key]);
+                if (MASTER_DB[key].risk === 'high') maxRisk = 'high';
+                else if (MASTER_DB[key].risk === 'med' && maxRisk !== 'high') maxRisk = 'med';
             }
         }
+
+        if (found.length > 0) {
+            found.forEach(item => {
+                detailsList.innerHTML += `
+                    <div class="ingredient-box risk-${item.risk}">
+                        <div class="tag-row">
+                            <span class="tag-name">${item.name}</span>
+                            <span class="tag-type">${item.type}</span>
+                        </div>
+                        <p class="tag-desc">${item.desc}</p>
+                    </div>`;
+            });
+            
+            // Fazit Logik
+            if(maxRisk === 'high') {
+                summary.innerText = "⚠️ KRITISCH: MEIDEN ODER REDUZIEREN";
+                summary.style.background = "var(--red)"; summary.style.color = "white";
+            } else if(maxRisk === 'med') {
+                summary.innerText = "⚖️ MITTELMÄSSIG: INDUSTRIELLE ZUTATEN";
+                summary.style.background = "var(--warn)"; summary.style.color = "black";
+            } else {
+                summary.innerText = "🍏 POSITIV: NATURNAHE INHALTSSTOFFE";
+                summary.style.background = "var(--green)"; summary.style.color = "white";
+            }
+        } else {
+            detailsList.innerHTML = "<p style='text-align:center; padding: 20px;'>Keine bekannten Problemstoffe erkannt. <br><small>Tipp: Halte die Kamera ruhiger und näher an den Text.</small></p>";
+            summary.innerText = "UNKLAR: TEXT NICHT LESBAR";
+            summary.style.background = "#ccc";
+        }
+
+        document.getElementById('result').classList.remove('hidden');
+        document.getElementById('status').innerText = "ANALYSE ABGESCHLOSSEN";
     }
 
-    async function captureAndOCR() {
-        document.getElementById('status').innerText = "KI liest Zutaten...";
-        const video = document.querySelector('video');
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-        
-        const { data: { text } } = await worker.recognize(canvas);
-        const lower = text.toLowerCase();
-        let found = [];
-        for(let key in DB) { if(lower.includes(key)) found.push("en:" + key); }
-        processResult("Text-Scan", found, text.substring(0, 50));
-    }
-
-    function processResult(name, tags, rawText = "") {
-        const details = tags.map(t => {
-            const code = t.replace('en:', '');
-            return DB[code] || { name: code, risk: "low", info: "Zusatzstoff." };
-        });
-
-        const entry = { name, date: new Date().toLocaleString(), details };
-        saveHistory(entry);
-        
-        document.getElementById('result-card').classList.remove('hidden');
-        document.getElementById('res-title').innerText = name;
-        document.getElementById('res-details').innerHTML = details.map(i => `
-            <div class="additive-item"><b class="risk-${i.risk}">${i.name}</b>: ${i.info}</div>
-        `).join('') || "Keine spezifischen Stoffe erkannt.";
-        document.getElementById('status').innerText = "Analyse fertig.";
-    }
-
-    function saveHistory(entry) {
-        let h = JSON.parse(localStorage.getItem('nutriHistory') || "[]");
-        h.unshift(entry);
-        localStorage.setItem('nutriHistory', JSON.stringify(h.slice(0, 50)));
-        renderHistory();
-    }
-
-    function renderHistory() {
-        const h = JSON.parse(localStorage.getItem('nutriHistory') || "[]");
-        document.getElementById('history-list').innerHTML = h.map(i => `
-            <div class="history-item"><span>${i.name}</span><small>${i.date}</small></div>
-        `).join('') || "Keine Scans.";
-    }
-
-    function exportData() {
-        const h = JSON.parse(localStorage.getItem('nutriHistory') || "[]");
-        let txt = "ERNÄHRUNGSBERICHT\n\n";
-        h.forEach(s => {
-            txt += `${s.name} (${s.date})\nInhaltsstoffe:\n` + 
-                   s.details.map(d => `- ${d.name}: ${d.info}`).join('\n') + "\n\n";
-        });
-        navigator.clipboard.writeText(txt);
-        alert("Bericht mit allen Details in Zwischenablage kopiert!");
-    }
-
-    function switchMode(m) {
-        currentMode = m;
-        document.getElementById('nav-barcode').classList.toggle('active', m === 'barcode');
-        document.getElementById('nav-text').classList.toggle('active', m === 'text');
-        init();
-    }
-
-    function closeResult() { document.getElementById('result-card').classList.add('hidden'); }
+    function closeResult() { document.getElementById('result').classList.add('hidden'); document.getElementById('status').innerText = "KI-OPTIC AKTIV"; }
     window.onload = init;
 </script>
 </body>
