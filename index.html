@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nutrition AI Vision Pro - Ultimate Edition</title>
+    <title>Nutrition AI Vision Pro - Expert Export</title>
     
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
@@ -28,7 +28,7 @@
         .risk-med { color: var(--warn); font-weight: bold; }
         .risk-low { color: var(--green); font-weight: bold; }
 
-        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 0.5px solid #ddd; font-size: 0.9rem; }
+        .history-item { display: flex; flex-direction: column; padding: 12px 0; border-bottom: 0.5px solid #ddd; font-size: 0.9rem; }
         .hidden { display: none !important; }
         canvas { display: none; }
     </style>
@@ -39,15 +39,15 @@
 
 <div class="container">
     <div id="reader"></div>
-    <div id="status" class="status">Initialisiere Kamera...</div>
+    <div id="status" class="status">Kamera bereit...</div>
 
     <div id="controls">
         <button id="btn-load" class="btn" style="background: var(--green);" onclick="initKI()">1. KI-MODULE LADEN</button>
-        <button id="btn-scan" class="btn hidden" onclick="scanProcess()">2. TEXT JETZT ANALYSIEREN</button>
+        <button id="btn-scan" class="btn hidden" onclick="scanProcess()">2. TEXT ANALYSIEREN</button>
     </div>
 
     <div id="result" class="card hidden">
-        <h3 id="res-name" style="margin-top:0;">Detaillierte Analyse</h3>
+        <h3 id="res-name" style="margin:0;">Detaillierte Analyse</h3>
         <div id="res-nova-badge" class="score-badge">Nova Gruppe: ?</div>
         <div id="res-summary" style="margin-bottom: 15px; font-weight: 500;"></div>
         <div id="res-details-list"></div>
@@ -55,9 +55,11 @@
     </div>
 
     <div class="card">
-        <h3 style="margin-top:0;">Verlauf (Letzte 50)</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0;">Scan-Verlauf</h3>
+            <button onclick="exportFullData()" style="background:none; border:none; color:var(--primary); font-weight:bold; cursor:pointer;">FULL EXPORT</button>
+        </div>
         <div id="history-list"></div>
-        <button class="btn" style="background: #ff3b30; font-size: 0.8rem; padding: 10px;" onclick="clearHistory()">Verlauf löschen</button>
     </div>
 </div>
 
@@ -68,33 +70,32 @@
     let worker = null;
 
     const INHALT_DB = {
-        "e440": { name: "Pektin (E440)", risk: "low", info: "Natürliches Geliermittel. Ballaststoffreich, fördert die Verdauung. Nova 1-2." },
+        "e440": { name: "Pektin (E440)", risk: "low", info: "Natürliches Geliermittel. Ballaststoffreich, fördert die Verdauung." },
         "pektin": { name: "Pektin", risk: "low", info: "Pflanzlich. Unbedenklich und gesund." },
-        "maltodextrin": { name: "Maltodextrin", risk: "med", info: "Versteckter Zucker. Lässt Blutzucker schnell steigen. Nova 4." },
-        "dextrose": { name: "Dextrose", risk: "med", info: "Einfachzucker. Belastet Bauchspeicheldrüse. Nova 4." },
-        "glukose": { name: "Glukosesirup", risk: "med", info: "Industrieller Zucker. Billiger Füllstoff. Nova 4." },
-        "e621": { name: "Glutamat (E621)", risk: "high", info: "Geschmacksverstärker. Stört Sättigungsgefühl. Nova 4." },
-        "e250": { name: "Nitrit", risk: "high", info: "Pökelsalz. Potenziell krebserregend. Nova 4." },
-        "palm": { name: "Palmfett / Palmöl", risk: "med", info: "Industrielles Fett. Bedenklich für Umwelt & Herz. Nova 4." }
+        "maltodextrin": { name: "Maltodextrin", risk: "med", info: "Versteckter Zucker. Lässt Blutzucker schnell steigen." },
+        "dextrose": { name: "Dextrose", risk: "med", info: "Einfachzucker. Schnelle Energiequelle." },
+        "glukose": { name: "Glukosesirup", risk: "med", info: "Industrieller Zucker. Billiger Füllstoff." },
+        "e621": { name: "Glutamat (E621)", risk: "high", info: "Geschmacksverstärker. Stört das Sättigungsgefühl." },
+        "e250": { name: "Nitrit", risk: "high", info: "Pökelsalz. Potenziell krebserregend." },
+        "palm": { name: "Palmfett / Palmöl", risk: "med", info: "Industrielles Fett. Bedenklich für Umwelt & Herz." }
     };
 
     function startCamera() {
         html5QrCode = new Html5Qrcode("reader");
         html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, () => {});
-        document.getElementById('status').innerText = "Kamera bereit. Bitte KI laden.";
         renderHistory();
     }
 
     async function initKI() {
-        document.getElementById('status').innerText = "KI lädt Sprachpaket...";
+        document.getElementById('status').innerText = "KI lädt...";
         worker = await Tesseract.createWorker('deu');
         document.getElementById('btn-load').classList.add('hidden');
         document.getElementById('btn-scan').classList.remove('hidden');
-        document.getElementById('status').innerText = "KI BEREIT! Text fokussieren.";
+        document.getElementById('status').innerText = "Bereit!";
     }
 
     async function scanProcess() {
-        document.getElementById('status').innerText = "KI analysiert Inhaltsstoffe...";
+        document.getElementById('status').innerText = "Analysiere...";
         const video = document.querySelector('video');
         const canvas = document.getElementById('preprocess-canvas');
         const ctx = canvas.getContext('2d');
@@ -122,10 +123,9 @@
         }
 
         const scanResult = {
-            name: "Text-Analyse " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+            name: "Scan " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
             nova: novaScore,
-            items: foundItems,
-            fullText: text.substring(0, 100),
+            items: foundItems, // Hier speichern wir das gesamte Objekt für den Export
             date: new Date().toLocaleDateString()
         };
 
@@ -139,18 +139,13 @@
         resCard.classList.remove('hidden');
         detailsList.innerHTML = "";
         
-        document.getElementById('res-nova-badge').innerText = `Nova Gruppe: ${res.nova}`;
+        document.getElementById('res-nova-badge').innerText = `Nova ${res.nova}`;
         document.getElementById('res-nova-badge').className = `score-badge ${res.nova === 4 ? 'nova-4' : 'nova-1'}`;
-        document.getElementById('res-summary').innerText = res.nova === 4 ? "⚠️ Industriell verarbeitet." : "🍏 Naturbelassen.";
 
-        if (res.items.length > 0) {
-            res.items.forEach(item => {
-                detailsList.innerHTML += `<div class="additive-item"><span class="risk-${item.risk}">${item.name}</span><br><small>${item.info}</small></div>`;
-            });
-        } else {
-            detailsList.innerHTML = `<p style='font-size:0.8rem; color:#666;'>Keine Treffer im Text: "${res.fullText}..."</p>`;
-        }
-        document.getElementById('status').innerText = "Fertig.";
+        res.items.forEach(item => {
+            detailsList.innerHTML += `<div class="additive-item"><span class="risk-${item.risk}">${item.name}</span><br><small>${item.info}</small></div>`;
+        });
+        document.getElementById('status').innerText = "Analyse fertig.";
     }
 
     function saveToHistory(entry) {
@@ -165,21 +160,44 @@
         const list = document.getElementById('history-list');
         list.innerHTML = history.map(item => `
             <div class="history-item">
-                <span><b>${item.name}</b><br><small>${item.date}</small></span>
-                <span class="score-badge ${item.nova === 4 ? 'nova-4' : 'nova-1'}" style="margin:0; font-size:0.7rem;">Nova ${item.nova}</span>
+                <span><b>${item.name}</b> (${item.date})</span>
+                <span style="font-size:0.8rem; color:${item.nova === 4 ? 'var(--red)' : 'var(--green)'}">
+                    Nova ${item.nova} - ${item.items.length} Stoffe erkannt
+                </span>
             </div>
-        `).join('') || '<p style="opacity:0.5; text-align:center;">Noch keine Scans gespeichert.</p>';
+        `).join('') || '<p style="opacity:0.5; text-align:center;">Keine Scans gespeichert.</p>';
     }
 
-    function clearHistory() {
-        if(confirm("Verlauf wirklich löschen?")) {
-            localStorage.removeItem('nutritionHistory');
-            renderHistory();
+    function exportFullData() {
+        const history = JSON.parse(localStorage.getItem('nutritionHistory')) || [];
+        if(history.length === 0) return alert("Keine Daten vorhanden.");
+
+        let exportText = "📊 NUTRITION VISION PRO - EXPERT REPORT\n" + "=".repeat(30) + "\n\n";
+
+        history.forEach((scan, index) => {
+            exportText += `${index + 1}. ${scan.name} (${scan.date})\n`;
+            exportText += `   Nova Gruppe: ${scan.nova}\n`;
+            exportText += `   Gefundene Stoffe:\n`;
+            
+            if(scan.items.length > 0) {
+                scan.items.forEach(item => {
+                    exportText += `   - [${item.risk.toUpperCase()}] ${item.name}: ${item.info}\n`;
+                });
+            } else {
+                exportText += `   - Keine spezifischen Stoffe erkannt.\n`;
+            }
+            exportText += "-".repeat(30) + "\n";
+        });
+
+        if (navigator.share) {
+            navigator.share({ title: 'Ernährungs-Bericht', text: exportText });
+        } else {
+            navigator.clipboard.writeText(exportText);
+            alert("Vollständiger Bericht mit Inhalts-Details wurde in die Zwischenablage kopiert!");
         }
     }
 
     function closeResult() { document.getElementById('result').classList.add('hidden'); }
-
     window.onload = startCamera;
 </script>
 </body>
