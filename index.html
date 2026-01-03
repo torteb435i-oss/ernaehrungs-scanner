@@ -2,130 +2,266 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Food Scanner 2026</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AI Nutrition Vision Pro</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FoodAI">
+
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
     <style>
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f8f9fa; display: flex; flex-direction: column; align-items: center; }
-        header { background: #2ecc71; color: white; width: 100%; padding: 20px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        #reader { width: 100%; max-width: 500px; margin-top: 10px; border-radius: 15px; overflow: hidden; }
-        .controls { margin: 20px; }
-        button { background: #3498db; color: white; border: none; padding: 15px 30px; border-radius: 30px; font-size: 1rem; cursor: pointer; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        button:active { transform: scale(0.95); }
-        .info-card { width: 90%; max-width: 460px; margin: 20px; padding: 20px; background: white; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: none; }
-        .badge { display: inline-block; padding: 5px 12px; border-radius: 20px; color: white; font-weight: bold; margin-bottom: 10px; }
-        .warning { background: #e67e22; }
-        .safe { background: #27ae60; }
-        .ingredient-item { border-bottom: 1px solid #eee; padding: 8px 0; font-size: 0.9rem; }
-        .danger-text { color: #c0392b; font-weight: bold; }
-        #status { font-style: italic; color: #666; margin: 10px; }
+        :root {
+            --primary: #007AFF; --bg: #f5f5f7; --glass: rgba(255, 255, 255, 0.75);
+            --text: #1d1d1f; --green: #34c759; --red: #ff3b30; --warn: #ff9500;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root { --bg: #000000; --glass: rgba(28, 28, 30, 0.85); --text: #f5f5f7; }
+        }
+
+        body { 
+            font-family: -apple-system, system-ui, sans-serif; 
+            background: var(--bg); margin: 0; color: var(--text);
+            padding-bottom: env(safe-area-inset-bottom);
+            overflow-x: hidden;
+        }
+
+        header {
+            background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: env(safe-area-inset-top) 20px 20px; text-align: center;
+            position: sticky; top: 0; z-index: 100; border-bottom: 0.5px solid rgba(120,120,120,0.2);
+        }
+
+        header h1 { font-size: 1rem; margin: 0; letter-spacing: 1px; font-weight: 900; }
+
+        /* Kamera-Bereich */
+        #reader-wrapper { position: relative; width: 100%; overflow: hidden; background: #000; }
+        #reader { width: 100%; height: 350px; }
+
+        /* Schließen-Button im Scanner */
+        #close-scanner {
+            position: absolute; top: 20px; right: 20px; z-index: 1001;
+            background: rgba(0,0,0,0.5); color: white; border: none;
+            width: 44px; height: 44px; border-radius: 50%; font-size: 20px;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(5px); transition: 0.2s;
+        }
+        #close-scanner:active { transform: scale(0.9); }
+
+        .container { width: 92%; max-width: 440px; margin: -40px auto 40px; position: relative; }
+
+        .card {
+            background: var(--glass); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border-radius: 30px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px; border: 1px solid rgba(150,150,150,0.1);
+        }
+
+        .stats-badge {
+            background: var(--primary); color: white; padding: 22px; border-radius: 25px;
+            text-align: center; transition: background 0.5s ease, transform 0.3s;
+        }
+        .stats-badge big { font-size: 2.2rem; font-weight: 900; display: block; margin: 5px 0; }
+        .over-limit { background: var(--warn) !important; animation: shake 0.5s; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
+
+        .btn {
+            background: var(--primary); color: white; border: none; padding: 18px;
+            border-radius: 20px; font-size: 1rem; font-weight: 700; width: 100%; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,122,255,0.2);
+        }
+
+        .tag-group { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+        .tag {
+            background: rgba(120,120,120,0.15); padding: 10px 18px;
+            border-radius: 15px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+        }
+        .tag input { display: none; }
+        .tag:has(input:checked) { background: var(--red); color: white; }
+
+        .history-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 0; border-bottom: 0.5px solid rgba(120,120,120,0.2);
+        }
+
+        .hidden { display: none !important; }
+        
+        #result-card { border: 2px solid var(--primary); animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
     </style>
 </head>
 <body>
 
-    <header>
-        <h1>🍎 AI Ernährungs-Scanner</h1>
-    </header>
+<header><h1>NUTRITION AI VISION</h1></header>
 
-    <div class="controls">
-        <button id="start-btn" onclick="startScanner()">Kamera jetzt aktivieren</button>
-    </div>
-
+<div id="reader-wrapper" class="hidden">
+    <button id="close-scanner" onclick="stopScanner()">✕</button>
     <div id="reader"></div>
-    <p id="status">Klicke oben, um zu starten</p>
+</div>
 
-    <div id="result-card" class="info-card">
-        <div id="score-badge" class="badge">Analyse...</div>
-        <h2 id="product-name" style="margin: 5px 0;">Produkt</h2>
-        <div id="ai-details"></div>
+<div class="container">
+    
+    <div id="dashboard" class="card">
+        <div id="kcal-badge" class="stats-badge">
+            <small>KALORIEN HEUTE</small>
+            <big id="total-kcal">0 kcal</big>
+            <small id="limit-info">Ziel: 2000 kcal</small>
+        </div>
+        
+        <div id="setup-view">
+            <p style="font-size: 0.9rem; margin-top: 25px; font-weight: 600;">Persönlicher Allergie-Wächter:</p>
+            <div class="tag-group">
+                <label class="tag"><input type="checkbox" value="nuss">🥜 Nuss</label>
+                <label class="tag"><input type="checkbox" value="milch">🥛 Milch</label>
+                <label class="tag"><input type="checkbox" value="gluten">🌾 Gluten</label>
+            </div>
+            <button class="btn" style="margin-top: 30px;" onclick="startScanner()">Scanner starten</button>
+        </div>
     </div>
 
-    <script>
-        let html5QrCode;
+    <div id="result-card" class="card hidden">
+        <h2 id="res-name" style="margin:0; font-size: 1.4rem;">Produkt</h2>
+        <p id="res-details" style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 20px;"></p>
+        <button class="btn" style="background: #8e8e93; box-shadow: none;" onclick="closeResult()">Fertig</button>
+    </div>
+
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0;">Verlauf</h3>
+            <button onclick="exportData()" style="background:none; border:none; color:var(--primary); font-weight:700; cursor:pointer;">TEILEN</button>
+        </div>
+        <div id="history-list" style="margin-top: 15px;"></div>
+    </div>
+</div>
+
+<script>
+    let html5QrCode;
+    const KCAL_LIMIT = 2000;
+
+    // UI Initialisierung
+    window.onload = refreshUI;
+
+    async function startScanner() {
+        document.getElementById('reader-wrapper').classList.remove('hidden');
+        document.getElementById('dashboard').style.marginTop = "20px";
         
-        async function startScanner() {
-            // Button ausblenden, wenn Kamera startet
-            document.getElementById('start-btn').style.display = 'none';
-            document.getElementById('status').innerText = "Kamera wird angefragt...";
-            
-            html5QrCode = new Html5Qrcode("reader");
-            const config = { fps: 10, qrbox: { width: 280, height: 180 } };
+        html5QrCode = new Html5Qrcode("reader");
+        const config = { fps: 20, qrbox: { width: 250, height: 250 } };
 
+        try {
+            await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (err) {
+            alert("Kamerafehler: Bitte HTTPS nutzen!");
+            stopScanner();
+        }
+    }
+
+    async function stopScanner() {
+        if (html5QrCode) {
             try {
-                await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
-                document.getElementById('status').innerText = "Scanner aktiv - Barcode suchen...";
-            } catch (err) {
-                document.getElementById('status').innerText = "Fehler: " + err;
-                document.getElementById('start-btn').style.display = 'block';
-                alert("Hinweis: Für den Kamerazugriff ist HTTPS zwingend erforderlich!");
-            }
+                await html5QrCode.stop();
+                html5QrCode = null;
+            } catch (e) {}
+        }
+        document.getElementById('reader-wrapper').classList.add('hidden');
+        document.getElementById('dashboard').style.marginTop = "-40px";
+    }
+
+    async function onScanSuccess(decodedText) {
+        // Bei Erfolg Kamera stoppen und Ergebnis zeigen
+        await stopScanner();
+        
+        // Online/Offline Logik
+        if (navigator.onLine) {
+            fetch(`https://world.openfoodfacts.org/api/v2/product/${decodedText}.json?fields=product_name,nutriments,nutrition_grades`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 1) {
+                        saveAndShow({
+                            name: data.product.product_name || "Unbekannt",
+                            kcal: Math.round(data.product.nutriments?.['energy-kcal_100g'] || 0),
+                            grade: data.product.nutrition_grades || "c"
+                        });
+                    }
+                });
+        } else {
+            // Offline Dummy
+            saveAndShow({ name: "Offline Produkt", kcal: 320, grade: "b" });
+        }
+    }
+
+    function saveAndShow(product) {
+        product.date = new Date().toLocaleDateString();
+        product.time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        
+        let db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
+        db.unshift(product);
+        localStorage.setItem('nutritionDB', JSON.stringify(db.slice(0, 20))); // Max 20 Items
+        
+        refreshUI();
+        
+        // Ergebnis-Karte füllen
+        document.getElementById('res-name').innerText = product.name;
+        document.getElementById('res-details').innerText = `Enthält ${product.kcal} kcal pro 100g. Bewertung: ${product.grade.toUpperCase()}`;
+        document.getElementById('result-card').classList.remove('hidden');
+    }
+
+    function refreshUI() {
+        const db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
+        const today = new Date().toLocaleDateString();
+        const total = db.filter(i => i.date === today).reduce((sum, i) => sum + i.kcal, 0);
+        
+        // Kalorien Update
+        document.getElementById('total-kcal').innerText = total + " kcal";
+        const badge = document.getElementById('kcal-badge');
+        if (total > KCAL_LIMIT) {
+            badge.classList.add('over-limit');
+            document.getElementById('limit-info').innerText = "LIMIT ÜBERSCHRITTEN!";
+        } else {
+            badge.classList.remove('over-limit');
+            document.getElementById('limit-info').innerText = `Ziel: ${KCAL_LIMIT} kcal`;
         }
 
-        function onScanSuccess(decodedText) {
-            document.getElementById('status').innerText = "Barcode erkannt: " + decodedText;
-            fetchData(decodedText);
-            // Kurz pausieren, damit man das Ergebnis lesen kann
-            html5QrCode.pause(); 
-            setTimeout(() => html5QrCode.resume(), 5000);
+        // Verlauf Update
+        const list = document.getElementById('history-list');
+        list.innerHTML = db.map(i => `
+            <div class="history-item">
+                <div>
+                    <div style="font-weight:700;">${i.name}</div>
+                    <div style="font-size:0.75rem; opacity:0.6;">${i.time} • ${i.kcal} kcal</div>
+                </div>
+                <div style="color:${['a','b'].includes(i.grade) ? 'var(--green)' : 'var(--red)'}; font-weight:900;">
+                    ${i.grade.toUpperCase()}
+                </div>
+            </div>
+        `).join('') || '<p style="opacity:0.5; font-size:0.8rem; text-align:center;">Noch keine Scans vorhanden.</p>';
+    }
+
+    function closeResult() {
+        document.getElementById('result-card').classList.add('hidden');
+    }
+
+    function exportData() {
+        const db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
+        let text = "📊 NUTRITION REPORT\n\n";
+        db.forEach(i => text += `${i.name}: ${i.kcal} kcal [${i.grade.toUpperCase()}]\n`);
+        
+        if (navigator.share) {
+            navigator.share({ title: 'Mein Food Scanner Report', text: text });
+        } else {
+            navigator.clipboard.writeText(text);
+            alert("Bericht wurde kopiert!");
         }
+    }
+</script>
 
-        async function fetchData(barcode) {
-            const url = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,ingredients_text,nutrition_grades`;
-            try {
-                const res = await fetch(url);
-                const data = await res.json();
-                if (data.status === 1) {
-                    showUI(data.product);
-                } else {
-                    document.getElementById('status').innerText = "Produkt unbekannt.";
-                }
-            } catch (e) {
-                console.error("API Fehler", e);
-            }
-        }
-
-        function showUI(p) {
-            document.getElementById('result-card').style.display = 'block';
-            document.getElementById('product-name').innerText = p.product_name || "Unbekanntes Produkt";
-            
-            const score = (p.nutrition_grades || "u").toUpperCase();
-            const badge = document.getElementById('score-badge');
-            badge.innerText = "Nutri-Score: " + score;
-            badge.className = "badge " + (['A','B'].includes(score) ? 'safe' : 'warning');
-
-            analyzeAI(p.ingredients_text || "");
-        }
-
-        function analyzeAI(text) {
-            const details = document.getElementById('ai-details');
-            if(!text) {
-                details.innerHTML = "Keine Zutatenliste gefunden.";
-                return;
-            }
-
-            // Erweiterte KI-Analyse Logik
-            const kritisch = {
-                "Zucker": "Vorsicht: Hoher Zuckeranteil.",
-                "Palm": "Enthält Palmöl (gesättigte Fette).",
-                "Aroma": "Industrielle Aromen enthalten.",
-                "E322": "Emulgator Lecithin gefunden.",
-                "Süßungsmittel": "Künstliche Süße erkannt.",
-                "Modifizierte": "Hinweis auf Hochverarbeitung (UPF)."
-            };
-
-            let html = "<p><strong>KI-Analyse der Inhaltsstoffe:</strong></p>";
-            let count = 0;
-
-            for (let key in kritisch) {
-                if (text.toLowerCase().includes(key.toLowerCase())) {
-                    html += `<div class="ingredient-item">⚠️ <span class="danger-text">${key}</span>: ${kritisch[key]}</div>`;
-                    count++;
-                }
-            }
-
-            if(count === 0) html += "<p class='safe'>✅ Keine kritischen Zusatzstoffe auf der Standardliste erkannt.</p>";
-            details.innerHTML = html;
-        }
-    </script>
 </body>
 </html>
