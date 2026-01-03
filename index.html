@@ -227,3 +227,8 @@
         const db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
         let t = "📊 NUTRITION REPORT\n\n" + db.map(i => `- ${i.name}: ${i.kcal} kcal [Score: ${i.grade}]`).join('\n');
         if (navigator.share) navigator.share({title: 'Report', text: t});
+        else { navigator.clipboard.writeText(t); alert("Kopiert!"); }
+    }
+</script>
+</body>
+</html>
