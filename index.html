@@ -7,7 +7,6 @@
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="FoodAI">
 
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     
@@ -25,7 +24,6 @@
             font-family: -apple-system, system-ui, sans-serif; 
             background: var(--bg); margin: 0; color: var(--text);
             padding-bottom: env(safe-area-inset-bottom);
-            overflow-x: hidden;
         }
 
         header {
@@ -34,72 +32,56 @@
             position: sticky; top: 0; z-index: 100; border-bottom: 0.5px solid rgba(120,120,120,0.2);
         }
 
-        header h1 { font-size: 1rem; margin: 0; letter-spacing: 1px; font-weight: 900; }
-
-        /* Kamera-Bereich */
         #reader-wrapper { position: relative; width: 100%; overflow: hidden; background: #000; }
-        #reader { width: 100%; height: 350px; }
+        #reader { width: 100%; height: 320px; }
 
-        /* Schließen-Button im Scanner */
         #close-scanner {
             position: absolute; top: 20px; right: 20px; z-index: 1001;
             background: rgba(0,0,0,0.5); color: white; border: none;
-            width: 44px; height: 44px; border-radius: 50%; font-size: 20px;
-            display: flex; align-items: center; justify-content: center;
-            backdrop-filter: blur(5px); transition: 0.2s;
+            width: 40px; height: 40px; border-radius: 50%; font-size: 18px;
+            backdrop-filter: blur(5px);
         }
-        #close-scanner:active { transform: scale(0.9); }
 
-        .container { width: 92%; max-width: 440px; margin: -40px auto 40px; position: relative; }
+        .container { width: 92%; max-width: 440px; margin: -30px auto 40px; position: relative; }
 
         .card {
             background: var(--glass); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
-            border-radius: 30px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            margin-bottom: 20px; border: 1px solid rgba(150,150,150,0.1);
+            border-radius: 30px; padding: 22px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 18px; border: 1px solid rgba(150,150,150,0.1);
         }
 
         .stats-badge {
-            background: var(--primary); color: white; padding: 22px; border-radius: 25px;
-            text-align: center; transition: background 0.5s ease, transform 0.3s;
+            background: var(--primary); color: white; padding: 20px; border-radius: 25px;
+            text-align: center; transition: 0.3s;
         }
-        .stats-badge big { font-size: 2.2rem; font-weight: 900; display: block; margin: 5px 0; }
-        .over-limit { background: var(--warn) !important; animation: shake 0.5s; }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(5px); }
-            75% { transform: translateX(-5px); }
-        }
+        .stats-badge big { font-size: 2rem; font-weight: 900; display: block; }
+        .over-limit { background: var(--warn) !important; }
 
         .btn {
-            background: var(--primary); color: white; border: none; padding: 18px;
-            border-radius: 20px; font-size: 1rem; font-weight: 700; width: 100%; cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,122,255,0.2);
+            background: var(--primary); color: white; border: none; padding: 16px;
+            border-radius: 18px; font-size: 1rem; font-weight: 700; width: 100%; cursor: pointer;
         }
 
-        .tag-group { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
-        .tag {
-            background: rgba(120,120,120,0.15); padding: 10px 18px;
-            border-radius: 15px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+        /* Neue KI-Info Icons */
+        .ai-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
+        .feature-box {
+            background: rgba(120,120,120,0.1); padding: 12px; border-radius: 18px;
+            text-align: center; font-size: 0.8rem; font-weight: 600;
         }
+        .feature-box span { display: block; font-size: 1.2rem; margin-bottom: 4px; }
+
+        .tag-group { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        .tag { background: rgba(120,120,120,0.1); padding: 8px 14px; border-radius: 12px; font-size: 0.8rem; }
         .tag input { display: none; }
         .tag:has(input:checked) { background: var(--red); color: white; }
 
-        .history-item {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 15px 0; border-bottom: 0.5px solid rgba(120,120,120,0.2);
-        }
-
+        .history-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 0.5px solid rgba(120,120,120,0.1); }
         .hidden { display: none !important; }
-        
-        #result-card { border: 2px solid var(--primary); animation: slideUp 0.3s ease-out; }
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
     </style>
 </head>
 <body>
 
-<header><h1>NUTRITION AI VISION</h1></header>
+<header><h1>NUTRITION AI VISION PRO</h1></header>
 
 <div id="reader-wrapper" class="hidden">
     <button id="close-scanner" onclick="stopScanner()">✕</button>
@@ -115,27 +97,47 @@
             <small id="limit-info">Ziel: 2000 kcal</small>
         </div>
         
-        <div id="setup-view">
-            <p style="font-size: 0.9rem; margin-top: 25px; font-weight: 600;">Persönlicher Allergie-Wächter:</p>
+        <div id="setup-area">
+            <p style="font-size: 0.85rem; margin-top: 20px;">KI-Wächter Profil:</p>
             <div class="tag-group">
                 <label class="tag"><input type="checkbox" value="nuss">🥜 Nuss</label>
                 <label class="tag"><input type="checkbox" value="milch">🥛 Milch</label>
                 <label class="tag"><input type="checkbox" value="gluten">🌾 Gluten</label>
             </div>
-            <button class="btn" style="margin-top: 30px;" onclick="startScanner()">Scanner starten</button>
+            <button class="btn" style="margin-top: 20px;" onclick="startScanner()">Scanner starten</button>
         </div>
     </div>
 
     <div id="result-card" class="card hidden">
-        <h2 id="res-name" style="margin:0; font-size: 1.4rem;">Produkt</h2>
-        <p id="res-details" style="font-size: 0.9rem; opacity: 0.8; margin-bottom: 20px;"></p>
-        <button class="btn" style="background: #8e8e93; box-shadow: none;" onclick="closeResult()">Fertig</button>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <h2 id="res-name" style="margin:0; font-size: 1.3rem; max-width: 70%;">Produkt</h2>
+            <div id="res-grade" style="font-size: 1.8rem; font-weight: 900;">-</div>
+        </div>
+        
+        <p id="res-kcal-info" style="font-size: 0.9rem; opacity: 0.7; margin: 5px 0 15px 0;"></p>
+
+        <div class="ai-features">
+            <div class="feature-box">
+                <span id="icon-nova">🏭</span>
+                <div id="text-nova">Verarbeitung</div>
+            </div>
+            <div class="feature-box">
+                <span id="icon-chem">🧪</span>
+                <div id="text-chem">Zusatzstoffe</div>
+            </div>
+            <div class="feature-box" style="grid-column: span 2;">
+                <span id="icon-vegan">🌿</span>
+                <div id="text-vegan">Inhalts-Check</div>
+            </div>
+        </div>
+
+        <button class="btn" style="background: #8e8e93;" onclick="closeResult()">Fertig</button>
     </div>
 
     <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <h3 style="margin:0;">Verlauf</h3>
-            <button onclick="exportData()" style="background:none; border:none; color:var(--primary); font-weight:700; cursor:pointer;">TEILEN</button>
+            <button onclick="exportData()" style="background:none; border:none; color:var(--primary); font-weight:700;">TEILEN</button>
         </div>
         <div id="history-list" style="margin-top: 15px;"></div>
     </div>
@@ -143,125 +145,105 @@
 
 <script>
     let html5QrCode;
-    const KCAL_LIMIT = 2000;
+    const LIMIT = 2000;
 
-    // UI Initialisierung
     window.onload = refreshUI;
 
     async function startScanner() {
         document.getElementById('reader-wrapper').classList.remove('hidden');
-        document.getElementById('dashboard').style.marginTop = "20px";
-        
         html5QrCode = new Html5Qrcode("reader");
-        const config = { fps: 20, qrbox: { width: 250, height: 250 } };
-
         try {
-            await html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        } catch (err) {
-            alert("Kamerafehler: Bitte HTTPS nutzen!");
-            stopScanner();
-        }
+            await html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, onScan);
+        } catch (e) { alert("HTTPS nötig!"); stopScanner(); }
     }
 
     async function stopScanner() {
-        if (html5QrCode) {
-            try {
-                await html5QrCode.stop();
-                html5QrCode = null;
-            } catch (e) {}
-        }
+        if (html5QrCode) { await html5QrCode.stop(); html5QrCode = null; }
         document.getElementById('reader-wrapper').classList.add('hidden');
-        document.getElementById('dashboard').style.marginTop = "-40px";
     }
 
-    async function onScanSuccess(decodedText) {
-        // Bei Erfolg Kamera stoppen und Ergebnis zeigen
+    async function onScan(code) {
         await stopScanner();
-        
-        // Online/Offline Logik
         if (navigator.onLine) {
-            fetch(`https://world.openfoodfacts.org/api/v2/product/${decodedText}.json?fields=product_name,nutriments,nutrition_grades`)
+            const fields = "product_name,nutriments,nutrition_grades,nova_group,additives_n,ingredients_analysis_tags";
+            fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${fields}`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.status === 1) {
-                        saveAndShow({
-                            name: data.product.product_name || "Unbekannt",
-                            kcal: Math.round(data.product.nutriments?.['energy-kcal_100g'] || 0),
-                            grade: data.product.nutrition_grades || "c"
+                        const p = data.product;
+                        processEntry({
+                            name: p.product_name || "Unbekannt",
+                            kcal: Math.round(p.nutriments?.['energy-kcal_100g'] || 0),
+                            grade: p.nutrition_grades || "c",
+                            nova: p.nova_group || "?",
+                            additives: p.additives_n || 0,
+                            tags: p.ingredients_analysis_tags || []
                         });
                     }
                 });
-        } else {
-            // Offline Dummy
-            saveAndShow({ name: "Offline Produkt", kcal: 320, grade: "b" });
         }
     }
 
-    function saveAndShow(product) {
-        product.date = new Date().toLocaleDateString();
-        product.time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        
+    function processEntry(p) {
+        p.date = new Date().toLocaleDateString();
+        p.time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
         let db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
-        db.unshift(product);
-        localStorage.setItem('nutritionDB', JSON.stringify(db.slice(0, 20))); // Max 20 Items
-        
+        db.unshift(p);
+        localStorage.setItem('nutritionDB', JSON.stringify(db.slice(0, 20)));
         refreshUI();
-        
-        // Ergebnis-Karte füllen
-        document.getElementById('res-name').innerText = product.name;
-        document.getElementById('res-details').innerText = `Enthält ${product.kcal} kcal pro 100g. Bewertung: ${product.grade.toUpperCase()}`;
+        showResult(p);
+    }
+
+    function showResult(p) {
+        document.getElementById('res-name').innerText = p.name;
+        document.getElementById('res-grade').innerText = p.grade.toUpperCase();
+        document.getElementById('res-grade').style.color = ['a','b'].includes(p.grade) ? 'var(--green)' : 'var(--red)';
+        document.getElementById('res-kcal-info').innerText = `${p.kcal} kcal pro 100g`;
+
+        // NOVA Logic
+        const novaBox = document.getElementById('text-nova');
+        novaBox.innerText = p.nova == 4 ? "Hochverarbeitet" : (p.nova <= 2 ? "Naturbelassen" : "Verarbeitet");
+        document.getElementById('icon-nova').innerText = p.nova == 4 ? "🏭" : "🍎";
+
+        // Chemie Logic
+        document.getElementById('text-chem').innerText = `${p.additives} Zusatzstoffe`;
+        document.getElementById('icon-chem').innerText = p.additives > 5 ? "🧪" : "✅";
+
+        // Vegan/Veggie Check
+        const isVegan = p.tags.includes('en:vegan');
+        const isVeggie = p.tags.includes('en:vegetarian');
+        document.getElementById('text-vegan').innerText = isVegan ? "Vegan zertifiziert" : (isVeggie ? "Vegetarisch" : "Klassisches Produkt");
+        document.getElementById('icon-vegan').innerText = isVegan ? "🌿" : "🍖";
+
         document.getElementById('result-card').classList.remove('hidden');
+        window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
     function refreshUI() {
         const db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
         const today = new Date().toLocaleDateString();
-        const total = db.filter(i => i.date === today).reduce((sum, i) => sum + i.kcal, 0);
-        
-        // Kalorien Update
+        const total = db.filter(i => i.date === today).reduce((s, i) => s + i.kcal, 0);
         document.getElementById('total-kcal').innerText = total + " kcal";
         const badge = document.getElementById('kcal-badge');
-        if (total > KCAL_LIMIT) {
-            badge.classList.add('over-limit');
-            document.getElementById('limit-info').innerText = "LIMIT ÜBERSCHRITTEN!";
-        } else {
-            badge.classList.remove('over-limit');
-            document.getElementById('limit-info').innerText = `Ziel: ${KCAL_LIMIT} kcal`;
-        }
-
-        // Verlauf Update
+        badge.className = total > LIMIT ? "stats-badge over-limit" : "stats-badge";
+        
         const list = document.getElementById('history-list');
         list.innerHTML = db.map(i => `
             <div class="history-item">
-                <div>
-                    <div style="font-weight:700;">${i.name}</div>
-                    <div style="font-size:0.75rem; opacity:0.6;">${i.time} • ${i.kcal} kcal</div>
-                </div>
-                <div style="color:${['a','b'].includes(i.grade) ? 'var(--green)' : 'var(--red)'}; font-weight:900;">
-                    ${i.grade.toUpperCase()}
-                </div>
+                <span><b>${i.name}</b><br><small>${i.time} • ${i.kcal} kcal</small></span>
+                <span style="font-weight:900; color:${['a','b'].includes(i.grade)?'var(--green)':'var(--red)'}">${i.grade.toUpperCase()}</span>
             </div>
-        `).join('') || '<p style="opacity:0.5; font-size:0.8rem; text-align:center;">Noch keine Scans vorhanden.</p>';
+        `).join('') || '<p style="opacity:0.5; font-size:0.8rem;">Keine Scans.</p>';
     }
 
-    function closeResult() {
-        document.getElementById('result-card').classList.add('hidden');
-    }
+    function closeResult() { document.getElementById('result-card').classList.add('hidden'); }
 
     function exportData() {
         const db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
-        let text = "📊 NUTRITION REPORT\n\n";
-        db.forEach(i => text += `${i.name}: ${i.kcal} kcal [${i.grade.toUpperCase()}]\n`);
-        
-        if (navigator.share) {
-            navigator.share({ title: 'Mein Food Scanner Report', text: text });
-        } else {
-            navigator.clipboard.writeText(text);
-            alert("Bericht wurde kopiert!");
-        }
+        let t = "📊 KI-REPORT\n";
+        db.forEach(i => t += `- ${i.name}: ${i.kcal}kcal [${i.grade.toUpperCase()}]\n`);
+        if (navigator.share) navigator.share({title: 'Food Report', text: t});
     }
 </script>
-
 </body>
 </html>
