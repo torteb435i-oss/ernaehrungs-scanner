@@ -2,136 +2,225 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nutrition Vision Pro OCR Fix</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Nutrition AI Vision Pro - Ultra</title>
     
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
     
     <style>
-        :root { --primary: #007AFF; --red: #ff3b30; --bg: #f5f5f7; }
-        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 0; }
-        .container { padding: 15px; max-width: 500px; margin: auto; }
-        
-        #reader { width: 100%; background: #000; border-radius: 20px; overflow: hidden; }
-        .btn { 
-            background: var(--primary); color: white; border: none; padding: 15px; 
-            border-radius: 15px; width: 100%; font-weight: bold; margin-top: 10px;
+        :root {
+            --primary: #007AFF; --bg: #f5f5f7; --glass: rgba(255, 255, 255, 0.8);
+            --text: #1d1d1f; --green: #34c759; --red: #ff3b30; --warn: #ff9500;
         }
-        .mode-select { display: flex; gap: 10px; margin-bottom: 15px; }
-        .mode-select button { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #ccc; background: white; }
-        .mode-select button.active { background: var(--primary); color: white; border: none; }
+        @media (prefers-color-scheme: dark) {
+            :root { --bg: #000000; --glass: rgba(28, 28, 30, 0.9); --text: #f5f5f7; }
+        }
+
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: env(safe-area-inset-bottom); }
+        .container { width: 92%; max-width: 440px; margin: 20px auto; }
         
-        #status-box { padding: 10px; text-align: center; font-size: 0.9rem; color: #666; }
-        .result-card { background: white; padding: 20px; border-radius: 20px; margin-top: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .hidden { display: none; }
+        /* Header & Navigation */
+        header { background: var(--glass); backdrop-filter: blur(20px); padding: 20px; text-align: center; border-bottom: 0.5px solid rgba(120,120,120,0.2); position: sticky; top: 0; z-index: 100; }
+        .mode-switch { display: flex; gap: 8px; margin-bottom: 15px; background: rgba(120,120,120,0.1); padding: 5px; border-radius: 14px; }
+        .mode-btn { flex: 1; padding: 12px; border-radius: 10px; border: none; background: none; font-weight: 600; color: var(--text); cursor: pointer; }
+        .mode-btn.active { background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: var(--primary); }
+
+        /* Kamera Bereich */
+        #reader-wrapper { width: 100%; border-radius: 25px; overflow: hidden; background: #000; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        #reader { width: 100%; }
+        #status-bar { padding: 10px; text-align: center; font-size: 0.85rem; font-weight: 600; color: var(--primary); }
+
+        /* Buttons & Cards */
+        .btn { background: var(--primary); color: white; border: none; padding: 18px; border-radius: 18px; font-size: 1rem; font-weight: 700; width: 100%; cursor: pointer; margin-top: 10px; }
+        .card { background: var(--glass); backdrop-filter: blur(30px); border-radius: 25px; padding: 22px; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid rgba(150,150,150,0.1); }
+
+        /* Analyse Styling */
+        .score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 15px 0; }
+        .score-box { background: rgba(120,120,120,0.08); padding: 15px; border-radius: 18px; text-align: center; }
+        .score-box big { font-size: 1.5rem; display: block; margin-bottom: 5px; }
+        
+        .additive-item { padding: 10px; border-bottom: 0.5px solid rgba(120,120,120,0.1); font-size: 0.85rem; }
+        .risk-high { color: var(--red); font-weight: bold; }
+        .risk-med { color: var(--warn); font-weight: bold; }
+        .risk-low { color: var(--green); font-weight: bold; }
+        
+        .allergy-alert { background: rgba(255, 59, 48, 0.1); color: var(--red); padding: 12px; border-radius: 15px; font-weight: bold; margin: 10px 0; border: 1px solid var(--red); }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
+<header><h1>NUTRITION AI VISION</h1></header>
+
 <div class="container">
-    <div class="mode-select">
-        <button id="mode-barcode" class="active" onclick="changeMode('barcode')">Barcode</button>
-        <button id="mode-text" onclick="changeMode('text')">Zutaten-Scan</button>
+    <div class="mode-switch">
+        <button id="btn-barcode" class="mode-btn active" onclick="setMode('barcode')">Barcode</button>
+        <button id="btn-text" class="mode-btn" onclick="setMode('text')">Zutaten-Scan</button>
     </div>
 
-    <div id="reader"></div>
-    <div id="status-box">Bereit zum Scannen</div>
-
-    <div id="text-controls" class="hidden">
-        <button id="load-ocr" class="btn" style="background:#34c759" onclick="initOCR()">1. KI-Modul laden</button>
-        <button id="scan-btn" class="btn hidden" onclick="captureAndRead()">2. Text jetzt lesen</button>
+    <div id="reader-wrapper">
+        <div id="reader"></div>
+        <div id="status-bar">Kamera bereit</div>
+        <div id="ocr-controls" class="hidden" style="padding: 15px;">
+            <button id="load-ocr-btn" class="btn" style="background:#34c759" onclick="prepareAI()">1. KI-Gehirn laden</button>
+            <button id="scan-ocr-btn" class="btn hidden" onclick="runOCR()">2. Text jetzt analysieren</button>
+        </div>
     </div>
 
-    <div id="result" class="result-card hidden">
-        <h3 id="res-name" style="margin-top:0">Ergebnis</h3>
-        <p id="res-details"></p>
-        <button class="btn" style="background:#8e8e93" onclick="document.getElementById('result').classList.add('hidden')">OK</button>
+    <div id="result-card" class="card hidden">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 id="res-title" style="margin:0; font-size:1.3rem;">Produkt</h2>
+            <div id="res-grade" style="font-size:2.5rem; font-weight:900;">-</div>
+        </div>
+
+        <div class="score-grid">
+            <div class="score-box"><big id="res-nova">🏭</big><small id="res-nova-text">Verarbeitung</small></div>
+            <div class="score-box"><big id="res-health">⚖️</big><small id="res-health-text">Bewertung</small></div>
+        </div>
+
+        <div id="allergy-box" class="allergy-alert hidden">⚠️ ALLERGENE: <span id="allergy-list"></span></div>
+
+        <div id="details-section">
+            <h4 style="margin: 15px 0 5px;">Inhalts-Check:</h4>
+            <div id="additive-list"></div>
+        </div>
+
+        <button class="btn" style="background:#8e8e93; margin-top:20px;" onclick="closeResult()">Fertig</button>
     </div>
 </div>
 
 <script>
     let scanner;
-    let worker = null;
-    let currentMode = 'barcode';
+    let ocrWorker = null;
+    let mode = 'barcode';
 
-    async function initScanner() {
+    // ERWEITERTE DATENBANK (E-Nummern & Risiken)
+    const NUTRITION_DB = {
+        "e621": { name: "Glutamat", risk: "med", desc: "Geschmacksverstärker. Kann Appetit künstlich anregen." },
+        "e250": { name: "Nitritpökelsalz", risk: "high", desc: "Kritisch. Potenziell krebserregend in Fleischwaren." },
+        "e330": { name: "Zitronensäure", risk: "low", desc: "Unbedenklich. Säuerungsmittel." },
+        "e171": { name: "Titandioxid", risk: "high", desc: "In EU verboten. Kann Erbgut schädigen." },
+        "e951": { name: "Aspartam", risk: "med", desc: "Süßstoff. Langzeitfolgen bei hohem Konsum umstritten." },
+        "e102": { name: "Tartrazin", risk: "high", desc: "Farbstoff. Kann Aktivität bei Kindern beeinflussen." },
+        "e322": { name: "Lecithin", risk: "low", desc: "Unbedenklich. Emulgator (oft Soja/Ei)." }
+    };
+
+    async function initCamera() {
         if (scanner) await scanner.stop();
         scanner = new Html5Qrcode("reader");
+        const config = { fps: 15, qrbox: { width: 250, height: 180 } };
         
-        const config = { fps: 10, qrbox: { width: 250, height: 150 } };
-        
-        if (currentMode === 'barcode') {
-            document.getElementById('text-controls').classList.add('hidden');
+        if (mode === 'barcode') {
+            document.getElementById('ocr-controls').classList.add('hidden');
             scanner.start({ facingMode: "environment" }, config, (code) => {
-                fetchProduct(code);
+                fetchFromAPI(code);
             });
         } else {
-            document.getElementById('text-controls').classList.remove('hidden');
-            scanner.start({ facingMode: "environment" }, config, () => {}); // Nur Video-Stream
+            document.getElementById('ocr-controls').classList.remove('hidden');
+            scanner.start({ facingMode: "environment" }, config, () => {}); 
         }
     }
 
-    function changeMode(m) {
-        currentMode = m;
-        document.getElementById('mode-barcode').className = m === 'barcode' ? 'active' : '';
-        document.getElementById('mode-text').className = m === 'text' ? 'active' : '';
-        initScanner();
+    function setMode(m) {
+        mode = m;
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`btn-${m}`).classList.add('active');
+        initCamera();
     }
 
-    // --- OCR LOGIK ---
-    async function initOCR() {
-        document.getElementById('status-box').innerText = "Lade Sprachdaten (bitte warten)...";
-        worker = await Tesseract.createWorker('deu');
-        document.getElementById('load-ocr').classList.add('hidden');
-        document.getElementById('scan-btn').classList.remove('hidden');
-        document.getElementById('status-box').innerText = "KI bereit!";
-    }
-
-    async function captureAndRead() {
-        if (!worker) return alert("Bitte zuerst KI laden!");
-        
-        document.getElementById('status-box').innerText = "Analysiere Text...";
-        const video = document.querySelector('video');
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-
-        const { data: { text } } = await worker.recognize(canvas);
-        processTextResult(text);
-    }
-
-    function processTextResult(text) {
-        const lower = text.toLowerCase();
-        let report = "Gefundene Inhaltsstoffe:\n";
-        
-        if (lower.includes("zucker")) report += "⚠️ Achtung: Enthält Zucker.\n";
-        if (lower.includes("palm")) report += "⚠️ Enthält Palmöl.\n";
-        
-        // E-Nummern Suche
-        const eNums = lower.match(/e\d{3,4}/g);
-        if (eNums) report += "Gefundene E-Nummern: " + eNums.join(", ");
-        
-        showUI("Text-Analyse", report);
-        document.getElementById('status-box').innerText = "Scan abgeschlossen.";
-    }
-
-    function fetchProduct(code) {
-        fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,additives_tags`)
-            .then(r => r.json()).then(d => {
-                const p = d.product;
-                showUI(p.product_name || "Unbekannt", "Zusatzstoffe: " + (p.additives_tags?.join(", ") || "Keine"));
+    // --- API SCAN (Barcode) ---
+    function fetchFromAPI(code) {
+        document.getElementById('status-bar').innerText = "Suche in Datenbank...";
+        fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,nutrition_grades,nova_group,additives_tags,allergens_tags`)
+            .then(res => res.json()).then(data => {
+                if(data.status === 1) buildFullAnalysis(data.product);
+                else alert("Produkt unbekannt.");
             });
     }
 
-    function showUI(title, details) {
-        document.getElementById('result').classList.remove('hidden');
-        document.getElementById('res-name').innerText = title;
-        document.getElementById('res-details').innerText = details;
+    // --- OCR SCAN (Text) ---
+    async function prepareAI() {
+        document.getElementById('status-bar').innerText = "KI-Module werden geladen...";
+        ocrWorker = await Tesseract.createWorker('deu');
+        document.getElementById('load-ocr-btn').classList.add('hidden');
+        document.getElementById('scan-ocr-btn').classList.remove('hidden');
+        document.getElementById('status-bar').innerText = "KI einsatzbereit!";
     }
 
-    window.onload = initScanner;
+    async function runOCR() {
+        document.getElementById('status-bar').innerText = "Analysiere Textstruktur...";
+        const video = document.querySelector('video');
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+
+        const { data: { text } } = await ocrWorker.recognize(canvas);
+        const lower = text.toLowerCase();
+        
+        // KI-Logik für Text-Beurteilung
+        const foundE = Object.keys(NUTRITION_DB).filter(e => lower.includes(e));
+        const mockProduct = {
+            product_name: "Text-Analyse",
+            nutrition_grades: (lower.includes("zucker") || lower.includes("sirup")) ? "d" : "b",
+            nova_group: (foundE.length > 2 || lower.includes("aroma")) ? 4 : 2,
+            additives_tags: foundE.map(e => "en:"+e),
+            allergens_tags: lower.match(/(nuss|milch|ei|weizen|soja)/g)?.map(a => "en:"+a) || []
+        };
+        buildFullAnalysis(mockProduct);
+    }
+
+    // --- DIE DETAILLIERTE ANALYSE (Das Herzstück) ---
+    function buildFullAnalysis(p) {
+        const resCard = document.getElementById('result-card');
+        resCard.classList.remove('hidden');
+        
+        // 1. Titel & NutriScore
+        document.getElementById('res-title').innerText = p.product_name || "Unbekannt";
+        const grade = (p.nutrition_grades || "c").toUpperCase();
+        document.getElementById('res-grade').innerText = grade;
+        document.getElementById('res-grade').style.color = grade <= 'B' ? 'var(--green)' : (grade >= 'D' ? 'var(--red)' : 'var(--warn)');
+
+        // 2. Nova Gruppe (Verarbeitung)
+        const nova = p.nova_group || 3;
+        const novaIcons = ["?", "🍏 Natur", "🥗 Verarbeitet", "🥘 Kochen", "🏭 Hochverarbeitet"];
+        document.getElementById('res-nova').innerText = nova >= 4 ? "🏭" : "🥗";
+        document.getElementById('res-nova-text').innerText = novaIcons[nova] || "Unbekannt";
+
+        // 3. Gesundheits-Urteil
+        let healthText = "Ausgewogen";
+        if(nova >= 4) healthText = "Ungesund (Labor)";
+        if(grade <= 'B' && nova < 3) healthText = "Sehr Gesund";
+        document.getElementById('res-health-text').innerText = healthText;
+
+        // 4. Allergene
+        const allergens = p.allergens_tags || [];
+        const alBox = document.getElementById('allergy-box');
+        if(allergens.length > 0) {
+            alBox.classList.remove('hidden');
+            document.getElementById('allergy-list').innerText = allergens.map(a => a.replace('en:', '').toUpperCase()).join(', ');
+        } else { alBox.classList.add('hidden'); }
+
+        // 5. E-Nummern Detail-Analyse
+        const list = document.getElementById('additive-list');
+        list.innerHTML = "";
+        const additives = p.additives_tags || [];
+        if(additives.length > 0) {
+            additives.forEach(tag => {
+                const code = tag.replace('en:', '').toLowerCase();
+                const info = NUTRITION_DB[code] || { name: code.toUpperCase(), risk: "low", desc: "Zusatzstoff ohne besondere Warnhinweise." };
+                list.innerHTML += `
+                    <div class="additive-item">
+                        <span class="risk-${info.risk}">${info.name}</span>: ${info.desc}
+                    </div>`;
+            });
+        } else { list.innerHTML = "<p>Keine kritischen Zusatzstoffe gefunden.</p>"; }
+        
+        document.getElementById('status-bar').innerText = "Analyse fertig.";
+    }
+
+    function closeResult() { document.getElementById('result-card').classList.add('hidden'); }
+    window.onload = initCamera;
 </script>
 </body>
 </html>
