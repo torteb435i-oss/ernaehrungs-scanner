@@ -12,12 +12,12 @@
     
     <style>
         :root {
-            --primary: #007AFF; --bg: #f5f5f7; --glass: rgba(255, 255, 255, 0.75);
+            --primary: #007AFF; --bg: #f5f5f7; --glass: rgba(255, 255, 255, 0.8);
             --text: #1d1d1f; --green: #34c759; --red: #ff3b30; --warn: #ff9500;
         }
 
         @media (prefers-color-scheme: dark) {
-            :root { --bg: #000000; --glass: rgba(28, 28, 30, 0.85); --text: #f5f5f7; }
+            :root { --bg: #000000; --glass: rgba(28, 28, 30, 0.9); --text: #f5f5f7; }
         }
 
         body { 
@@ -37,9 +37,8 @@
 
         #close-scanner {
             position: absolute; top: 20px; right: 20px; z-index: 1001;
-            background: rgba(0,0,0,0.5); color: white; border: none;
-            width: 40px; height: 40px; border-radius: 50%; font-size: 18px;
-            backdrop-filter: blur(5px);
+            background: rgba(0,0,0,0.6); color: white; border: none;
+            width: 44px; height: 44px; border-radius: 50%; font-size: 20px;
         }
 
         .container { width: 92%; max-width: 440px; margin: -30px auto 40px; position: relative; }
@@ -55,28 +54,37 @@
             text-align: center; transition: 0.3s;
         }
         .stats-badge big { font-size: 2rem; font-weight: 900; display: block; }
-        .over-limit { background: var(--warn) !important; }
+        .over-limit { background: var(--warn) !important; animation: shake 0.5s; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
 
         .btn {
             background: var(--primary); color: white; border: none; padding: 16px;
             border-radius: 18px; font-size: 1rem; font-weight: 700; width: 100%; cursor: pointer;
         }
 
-        /* Neue KI-Info Icons */
         .ai-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
         .feature-box {
             background: rgba(120,120,120,0.1); padding: 12px; border-radius: 18px;
-            text-align: center; font-size: 0.8rem; font-weight: 600;
+            text-align: center; font-size: 0.8rem; font-weight: 600; transition: 0.2s;
         }
+        .feature-box:active { transform: scale(0.95); background: rgba(120,120,120,0.2); }
         .feature-box span { display: block; font-size: 1.2rem; margin-bottom: 4px; }
 
-        .tag-group { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-        .tag { background: rgba(120,120,120,0.1); padding: 8px 14px; border-radius: 12px; font-size: 0.8rem; }
-        .tag input { display: none; }
-        .tag:has(input:checked) { background: var(--red); color: white; }
-
         .history-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 0.5px solid rgba(120,120,120,0.1); }
+        
         .hidden { display: none !important; }
+
+        /* Modal Style */
+        #additive-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.8); z-index: 2000; backdrop-filter: blur(10px);
+            display: flex; align-items: center; justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -96,24 +104,14 @@
             <big id="total-kcal">0 kcal</big>
             <small id="limit-info">Ziel: 2000 kcal</small>
         </div>
-        
-        <div id="setup-area">
-            <p style="font-size: 0.85rem; margin-top: 20px;">KI-Wächter Profil:</p>
-            <div class="tag-group">
-                <label class="tag"><input type="checkbox" value="nuss">🥜 Nuss</label>
-                <label class="tag"><input type="checkbox" value="milch">🥛 Milch</label>
-                <label class="tag"><input type="checkbox" value="gluten">🌾 Gluten</label>
-            </div>
-            <button class="btn" style="margin-top: 20px;" onclick="startScanner()">Scanner starten</button>
-        </div>
+        <button class="btn" style="margin-top: 25px;" onclick="startScanner()">Scanner starten</button>
     </div>
 
     <div id="result-card" class="card hidden">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <h2 id="res-name" style="margin:0; font-size: 1.3rem; max-width: 70%;">Produkt</h2>
+        <div style="display:flex; justify-content:space-between;">
+            <h2 id="res-name" style="margin:0; font-size: 1.3rem;">Produkt</h2>
             <div id="res-grade" style="font-size: 1.8rem; font-weight: 900;">-</div>
         </div>
-        
         <p id="res-kcal-info" style="font-size: 0.9rem; opacity: 0.7; margin: 5px 0 15px 0;"></p>
 
         <div class="ai-features">
@@ -121,16 +119,16 @@
                 <span id="icon-nova">🏭</span>
                 <div id="text-nova">Verarbeitung</div>
             </div>
-            <div class="feature-box">
+            <div class="feature-box" onclick="showAdditiveDetails()" style="border: 1px solid var(--primary);">
                 <span id="icon-chem">🧪</span>
                 <div id="text-chem">Zusatzstoffe</div>
+                <small style="color:var(--primary); font-size:0.6rem;">Details ></small>
             </div>
             <div class="feature-box" style="grid-column: span 2;">
                 <span id="icon-vegan">🌿</span>
                 <div id="text-vegan">Inhalts-Check</div>
             </div>
         </div>
-
         <button class="btn" style="background: #8e8e93;" onclick="closeResult()">Fertig</button>
     </div>
 
@@ -143,9 +141,30 @@
     </div>
 </div>
 
+<div id="additive-modal" class="hidden">
+    <div class="card" style="width:85%; max-height:75%; overflow-y:auto;">
+        <h3 style="margin-top:0;">Inhaltsstoff-Analyse</h3>
+        <div id="additive-details-list"></div>
+        <button class="btn" style="margin-top:20px;" onclick="document.getElementById('additive-modal').classList.add('hidden')">Schließen</button>
+    </div>
+</div>
+
 <script>
     let html5QrCode;
     const LIMIT = 2000;
+    let currentAdditives = [];
+
+    // Datenbank für Zusatzstoffe
+    const ADDITIVE_INFO = {
+        "e300": { name: "Vitamin C (E300)", risk: "low", info: "Unbedenklich, schützt vor Oxidation." },
+        "e330": { name: "Zitronensäure (E330)", risk: "low", info: "Natürliche Säure, meist unbedenklich." },
+        "e621": { name: "Glutamat (E621)", risk: "medium", info: "Geschmacksverstärker. Kann bei Sensibilität Kopfschmerzen auslösen." },
+        "e250": { name: "Natriumnitrit (E250)", risk: "high", info: "Konservierungsmittel. Kann krebserregende Nitrosamine bilden." },
+        "e102": { name: "Tartrazin (E102)", risk: "high", info: "Farbstoff. Kann Aktivität von Kindern beeinflussen." },
+        "e951": { name: "Aspartam (E951)", risk: "medium", info: "Süßstoff. Umstritten hinsichtlich Langzeitfolgen." },
+        "e412": { name: "Guarkernmehl (E412)", risk: "low", info: "Verdickungsmittel, gilt als sicher." },
+        "e171": { name: "Titandioxid (E171)", risk: "high", info: "In der EU in Lebensmitteln verboten (potenziell erbgutverändernd)." }
+    };
 
     window.onload = refreshUI;
 
@@ -154,7 +173,7 @@
         html5QrCode = new Html5Qrcode("reader");
         try {
             await html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, onScan);
-        } catch (e) { alert("HTTPS nötig!"); stopScanner(); }
+        } catch (e) { alert("HTTPS benötigt!"); stopScanner(); }
     }
 
     async function stopScanner() {
@@ -164,24 +183,23 @@
 
     async function onScan(code) {
         await stopScanner();
-        if (navigator.onLine) {
-            const fields = "product_name,nutriments,nutrition_grades,nova_group,additives_n,ingredients_analysis_tags";
-            fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${fields}`)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === 1) {
-                        const p = data.product;
-                        processEntry({
-                            name: p.product_name || "Unbekannt",
-                            kcal: Math.round(p.nutriments?.['energy-kcal_100g'] || 0),
-                            grade: p.nutrition_grades || "c",
-                            nova: p.nova_group || "?",
-                            additives: p.additives_n || 0,
-                            tags: p.ingredients_analysis_tags || []
-                        });
-                    }
-                });
-        }
+        const fields = "product_name,nutriments,nutrition_grades,nova_group,additives_tags,ingredients_analysis_tags";
+        fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=${fields}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 1) {
+                    const p = data.product;
+                    currentAdditives = p.additives_tags || [];
+                    processEntry({
+                        name: p.product_name || "Unbekannt",
+                        kcal: Math.round(p.nutriments?.['energy-kcal_100g'] || 0),
+                        grade: p.nutrition_grades || "c",
+                        nova: p.nova_group || "?",
+                        addCount: currentAdditives.length,
+                        tags: p.ingredients_analysis_tags || []
+                    });
+                }
+            });
     }
 
     function processEntry(p) {
@@ -200,50 +218,25 @@
         document.getElementById('res-grade').style.color = ['a','b'].includes(p.grade) ? 'var(--green)' : 'var(--red)';
         document.getElementById('res-kcal-info').innerText = `${p.kcal} kcal pro 100g`;
 
-        // NOVA Logic
-        const novaBox = document.getElementById('text-nova');
-        novaBox.innerText = p.nova == 4 ? "Hochverarbeitet" : (p.nova <= 2 ? "Naturbelassen" : "Verarbeitet");
-        document.getElementById('icon-nova').innerText = p.nova == 4 ? "🏭" : "🍎";
+        document.getElementById('text-nova').innerText = p.nova == 4 ? "Hochverarbeitet" : "Natürlich";
+        document.getElementById('icon-nova').innerText = p.nova == 4 ? "🏭" : "🍏";
 
-        // Chemie Logic
-        document.getElementById('text-chem').innerText = `${p.additives} Zusatzstoffe`;
-        document.getElementById('icon-chem').innerText = p.additives > 5 ? "🧪" : "✅";
+        document.getElementById('text-chem').innerText = `${p.addCount} Zusatzstoffe`;
+        document.getElementById('icon-chem').innerText = p.addCount > 4 ? "🧪" : "✅";
 
-        // Vegan/Veggie Check
-        const isVegan = p.tags.includes('en:vegan');
-        const isVeggie = p.tags.includes('en:vegetarian');
-        document.getElementById('text-vegan').innerText = isVegan ? "Vegan zertifiziert" : (isVeggie ? "Vegetarisch" : "Klassisches Produkt");
-        document.getElementById('icon-vegan').innerText = isVegan ? "🌿" : "🍖";
+        const vegan = p.tags.includes('en:vegan');
+        document.getElementById('text-vegan').innerText = vegan ? "Vegan" : "Klassisch";
+        document.getElementById('icon-vegan').innerText = vegan ? "🌿" : "🍖";
 
         document.getElementById('result-card').classList.remove('hidden');
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
-    function refreshUI() {
-        const db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
-        const today = new Date().toLocaleDateString();
-        const total = db.filter(i => i.date === today).reduce((s, i) => s + i.kcal, 0);
-        document.getElementById('total-kcal').innerText = total + " kcal";
-        const badge = document.getElementById('kcal-badge');
-        badge.className = total > LIMIT ? "stats-badge over-limit" : "stats-badge";
-        
-        const list = document.getElementById('history-list');
-        list.innerHTML = db.map(i => `
-            <div class="history-item">
-                <span><b>${i.name}</b><br><small>${i.time} • ${i.kcal} kcal</small></span>
-                <span style="font-weight:900; color:${['a','b'].includes(i.grade)?'var(--green)':'var(--red)'}">${i.grade.toUpperCase()}</span>
-            </div>
-        `).join('') || '<p style="opacity:0.5; font-size:0.8rem;">Keine Scans.</p>';
-    }
-
-    function closeResult() { document.getElementById('result-card').classList.add('hidden'); }
-
-    function exportData() {
-        const db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
-        let t = "📊 KI-REPORT\n";
-        db.forEach(i => t += `- ${i.name}: ${i.kcal}kcal [${i.grade.toUpperCase()}]\n`);
-        if (navigator.share) navigator.share({title: 'Food Report', text: t});
-    }
-</script>
-</body>
-</html>
+    function showAdditiveDetails() {
+        const list = document.getElementById('additive-details-list');
+        if(currentAdditives.length === 0) {
+            list.innerHTML = "<p>Keine Zusatzstoffe gefunden.</p>";
+        } else {
+            list.innerHTML = currentAdditives.map(id => {
+                const e = id.replace('en:', '').toLowerCase();
+                const info = ADDITIVE_INFO[e] || { name: e.toUpperCase(), risk: "unknown
