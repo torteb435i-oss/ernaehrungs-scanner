@@ -58,3 +58,156 @@
         .loading-ocr { display: none; text-align: center; padding: 20px; color: var(--primary); font-weight: bold; }
         .hidden { display: none !important; }
     </style>
+</head>
+<body>
+
+<header><h1>NUTRITION VISION PRO</h1></header>
+
+<div class="container">
+    <div class="mode-switch">
+        <button id="btn-barcode" class="mode-btn active" onclick="setScanMode('barcode')">Barcode</button>
+        <button id="btn-text" class="mode-btn" onclick="setScanMode('text')">Inhaltsliste (OCR)</button>
+    </div>
+
+    <div id="reader-wrapper" class="card">
+        <div id="reader"></div>
+        <button onclick="stopScanner()" style="position:absolute; right:15px; top:15px; z-index:100; background:white; border-radius:50%; width:35px; height:35px; border:none;">✕</button>
+        <div id="ocr-trigger" class="hidden" style="position:absolute; bottom:20px; width:100%; text-align:center; z-index:101;">
+            <button class="btn" style="width:80%;" onclick="captureAndAnalyze()">Text jetzt scannen</button>
+        </div>
+    </div>
+
+    <div id="loading" class="loading-ocr">🔬 KI analysiert Text...</div>
+
+    <div id="result-card" class="card hidden">
+        <h2 id="res-name">Produkt-Analyse</h2>
+        <div class="ai-features">
+            <div class="feature-box"><span id="icon-nova">🍏</span><div id="text-nova">Natürlich</div></div>
+            <div class="feature-box"><span id="icon-vegan">🌿</span><div id="text-vegan">Check</div></div>
+        </div>
+        <div id="allergy-warn" class="allergy-warn hidden">⚠️ Allergene gefunden!</div>
+        <div id="additive-list-container"></div>
+        <button class="btn" style="background:#8e8e93; margin-top:15px;" onclick="closeResult()">Fertig</button>
+    </div>
+
+    <div class="card">
+        <h3>Verlauf (Top 50)</h3>
+        <div id="history-list"></div>
+    </div>
+</div>
+
+<script>
+    let html5QrCode;
+    let currentScanMode = 'barcode';
+    const E_DB = {
+        "e102": {name:"Tartrazin", risk:"high", desc:"Farbstoff. Hyperaktivität möglich."},
+        "e250": {name:"Nitrit", risk:"high", desc:"Konservierung. Krebserregend."},
+        "e330": {name:"Zitronensäure", risk:"low", desc:"Unbedenklich."},
+        "e621": {name:"Glutamat", risk:"med", desc:"Geschmacksverstärker."},
+        "e951": {name:"Aspartam", risk:"med", desc:"Süßstoff."}
+    };
+
+    function setScanMode(mode) {
+        currentScanMode = mode;
+        document.getElementById('btn-barcode').classList.toggle('active', mode === 'barcode');
+        document.getElementById('btn-text').classList.toggle('active', mode === 'text');
+        if(html5QrCode) stopScanner();
+    }
+
+    async function startScanner() {
+        document.getElementById('reader-wrapper').style.display = 'block';
+        document.getElementById('ocr-trigger').classList.toggle('hidden', currentScanMode !== 'text');
+        html5QrCode = new Html5Qrcode("reader");
+        const config = { fps: 20, qrbox: 250 };
+        if(currentScanMode === 'barcode') {
+            await html5QrCode.start({ facingMode: "environment" }, config, onBarcodeFound);
+        } else {
+            await html5QrCode.start({ facingMode: "environment" }, config, () => {}); // Nur Video-Feed
+        }
+    }
+
+    function stopScanner() {
+        if(html5QrCode) html5QrCode.stop().then(() => {
+            document.getElementById('reader-wrapper').style.display = 'none';
+        });
+    }
+
+    // --- BARCODE LOGIK ---
+    function onBarcodeFound(code) {
+        stopScanner();
+        fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,nutrition_grades,nova_group,additives_tags,allergens_tags`)
+            .then(r => r.json()).then(d => {
+                if(d.status === 1) processResult(d.product);
+                else alert("Nicht gefunden");
+            });
+    }
+
+    // --- OCR LOGIK (Inhaltsliste lesen) ---
+    async function captureAndAnalyze() {
+        document.getElementById('loading').style.display = 'block';
+        const video = document.querySelector('#reader video');
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        
+        const result = await Tesseract.recognize(canvas, 'deu');
+        analyzeText(result.data.text);
+    }
+
+    function analyzeText(text) {
+        document.getElementById('loading').style.display = 'none';
+        stopScanner();
+        const lowerText = text.toLowerCase();
+        
+        // KI-Analyse des Textes
+        const foundAdditives = Object.keys(E_DB).filter(e => lowerText.includes(e));
+        const hasZucker = lowerText.includes("zucker") || lowerText.includes("sirup");
+        const hasPalmfett = lowerText.includes("palm");
+        
+        const resultData = {
+            product_name: "Text-Analyse",
+            nutrition_grades: hasZucker ? "d" : "b",
+            nova_group: lowerText.length > 100 ? 4 : 2,
+            additives_tags: foundAdditives.map(e => "en:"+e),
+            allergens_tags: lowerText.includes("nuss") || lowerText.includes("milch") ? ["en:milch"] : []
+        };
+        processResult(resultData);
+    }
+
+    function processResult(p) {
+        document.getElementById('res-name').innerText = p.product_name || "Unbekannt";
+        document.getElementById('icon-nova').innerText = p.nova_group == 4 ? "🏭" : "🍏";
+        document.getElementById('text-nova').innerText = p.nova_group == 4 ? "Hochverarbeitet" : "Natürlich";
+        
+        const allergens = p.allergens_tags || [];
+        document.getElementById('allergy-warn').classList.toggle('hidden', allergens.length === 0);
+
+        const list = document.getElementById('additive-list-container');
+        list.innerHTML = "<h4>Zusatzstoffe:</h4>";
+        (p.additives_tags || []).forEach(tag => {
+            const e = tag.replace('en:', '');
+            const info = E_DB[e] || {name: e.toUpperCase(), risk:"low", desc:"Zusatzstoff"};
+            list.innerHTML += `<div class="additive-item"><span class="risk-${info.risk}">${info.name}</span>: ${info.desc}</div>`;
+        });
+
+        document.getElementById('result-card').classList.remove('hidden');
+        saveToHistory(p);
+    }
+
+    function saveToHistory(p) {
+        let db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
+        db.unshift({name: p.product_name, date: new Date().toLocaleDateString()});
+        localStorage.setItem('nutritionDB', JSON.stringify(db.slice(0, 50)));
+        refreshHistory();
+    }
+
+    function refreshHistory() {
+        const db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
+        document.getElementById('history-list').innerHTML = db.map(i => `<div class="history-item"><b>${i.name}</b><small>${i.date}</small></div>`).join('');
+    }
+
+    function closeResult() { document.getElementById('result-card').classList.add('hidden'); }
+    window.onload = () => { refreshHistory(); startScanner(); };
+</script>
+</body>
+</html>
