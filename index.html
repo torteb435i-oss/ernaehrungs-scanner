@@ -178,4 +178,54 @@
 
         const nova = p.nova_group || 3;
         document.getElementById('res-nova').innerText = nova >= 4 ? "🏭" : "🍏";
-        document.getElementById('res-nova-text').innerText = nova >= 4
+        document.getElementById('res-nova-text').innerText = nova >= 4 ? "Hochverarbeitet" : "Naturnah";
+
+        // Deep Analysis & Fazit
+        const additives = p.additives_tags || [];
+        const riskLevel = additives.some(t => {
+            const code = t.replace('en:', '').replace('custom_', '');
+            return NUTRITION_DB[code]?.risk === 'high';
+        });
+
+        let summary = "Dieses Produkt scheint ausgewogen zu sein.";
+        if (nova >= 4) summary = "Vorsicht: Dies ist ein hochverarbeitetes Industrieprodukt.";
+        if (riskLevel) summary += " Es wurden kritische Inhaltsstoffe gefunden.";
+        if (p.isOCR) summary = "KI-Fazit basierend auf Textscan: " + summary;
+        
+        document.getElementById('res-summary').innerText = summary;
+
+        const list = document.getElementById('additive-list');
+        list.innerHTML = "";
+        additives.forEach(tag => {
+            const code = tag.replace('en:', '').replace('custom_', '');
+            const info = NUTRITION_DB[code] || { name: code.toUpperCase(), risk: "low", desc: "Zusatzstoff." };
+            list.innerHTML += `<div class="additive-item"><span class="risk-${info.risk}">${info.name}</span>: ${info.desc}</div>`;
+        });
+        
+        saveHistory(p);
+    }
+
+    function saveHistory(p) {
+        let db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
+        db.unshift({ name: p.product_name, grade: (p.nutrition_grades || "C").toUpperCase(), date: new Date().toLocaleDateString() });
+        localStorage.setItem('nutritionDB', JSON.stringify(db.slice(0, 50)));
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const db = JSON.parse(localStorage.getItem('nutritionDB')) || [];
+        document.getElementById('history-list').innerHTML = db.map(i => `
+            <div class="history-item">
+                <span><b>${i.name}</b><br><small>${i.date}</small></span>
+                <span style="font-weight:900; color:${i.grade <= 'B' ? 'var(--green)' : 'var(--red)'}">${i.grade}</span>
+            </div>`).join('') || '<p style="text-align:center; opacity:0.5;">Noch keine Scans.</p>';
+    }
+
+    function setMode(m) { mode = m; document.getElementById('btn-barcode').classList.toggle('active', m === 'barcode'); document.getElementById('btn-text').classList.toggle('active', m === 'text'); initCamera(); }
+    function closeResult() { document.getElementById('result-card').classList.add('hidden'); }
+    function exportHistory() { const db = JSON.parse(localStorage.getItem('nutritionDB')) || []; alert("Exportiere " + db.length + " Einträge..."); console.log(db); }
+
+    window.onload = () => { renderHistory(); initCamera(); };
+</script>
+</body>
+</html>
