@@ -3,192 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nutrition AI Pro - Full Vision</title>
+    <title>Nutrition AI - Expert Edition</title>
     
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://unpkg.com/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
     
     <style>
-        :root { 
-            --primary: #007AFF; --bg: #f2f2f7; --text: #1c1c1e; 
-            --green: #34c759; --red: #ff3b30; --warn: #ff9500; --card: #ffffff;
-        }
-        @media (prefers-color-scheme: dark) {
-            :root { --bg: #000; --text: #fff; --card: #1c1c1e; }
-        }
-
-        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 50px; }
-        header { background: var(--card); padding: 20px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top:0; z-index:100; }
+        :root { --primary: #007AFF; --green: #34c759; --red: #ff3b30; --warn: #ff9500; --bg: #f2f2f7; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; color: #1c1c1e; }
+        header { background: white; padding: 20px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .container { width: 92%; max-width: 440px; margin: 20px auto; }
         
-        #reader-wrapper { width: 100%; border-radius: 28px; overflow: hidden; background: #000; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 2px solid var(--primary); }
+        #reader-wrapper { border-radius: 25px; overflow: hidden; border: 3px solid var(--primary); background: #000; position: relative; }
         
+        .card { background: white; border-radius: 25px; padding: 20px; margin-top: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
         .btn { background: var(--primary); color: white; border: none; padding: 18px; border-radius: 18px; font-size: 1rem; font-weight: bold; width: 100%; cursor: pointer; margin-top: 10px; }
         
-        .card { background: var(--card); border-radius: 24px; padding: 22px; margin-top: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        /* EXPERTEN DETAILS */
+        .additive-item { padding: 15px; border-radius: 15px; margin-bottom: 12px; background: #f8f9fa; border-left: 6px solid #ccc; }
+        .risk-low { border-left-color: var(--green); }
+        .risk-med { border-left-color: var(--warn); }
+        .risk-high { border-left-color: var(--red); }
         
-        /* Analyse-Dashboard Design */
-        .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0; }
-        .dash-item { background: rgba(120,120,120,0.1); padding: 15px; border-radius: 18px; text-align: center; }
-        .dash-item big { display: block; font-size: 1.5rem; font-weight: 800; }
-        .dash-item small { font-size: 0.7rem; font-weight: 700; opacity: 0.7; text-transform: uppercase; }
+        .add-name { font-weight: 800; font-size: 1.1rem; color: #000; }
+        .add-info { font-size: 0.9rem; margin-top: 5px; line-height: 1.4; color: #444; }
+        .add-usage { font-size: 0.75rem; color: var(--primary); text-transform: uppercase; font-weight: bold; margin-top: 4px; display: block; }
 
-        .additive-box { padding: 15px; border-radius: 15px; margin-bottom: 12px; border-left: 6px solid #ccc; background: rgba(120,120,120,0.05); }
-        .low { border-left-color: var(--green); } .med { border-left-color: var(--warn); } .high { border-left-color: var(--red); }
-        
-        .summary-box { padding: 15px; border-radius: 15px; font-weight: bold; text-align: center; margin-bottom: 15px; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-<header><strong>NUTRITION AI VISION PRO</strong></header>
+<header><strong>LEBENSMITTEL-DETEKTIV PRO</strong></header>
 
 <div class="container">
-    <div id="reader-wrapper">
-        <div id="reader"></div>
-    </div>
+    <div id="reader-wrapper"><div id="reader"></div></div>
     
-    <div id="status" style="text-align:center; padding:10px; font-weight:bold; color:var(--primary);">Kamera bereit</div>
-
-    <button class="btn" style="background: var(--green);" onclick="startDeepOCR()">ZUTATEN-TIEFENANALYSE</button>
+    <button class="btn" style="background:var(--green);" onclick="scanText()">ZUTATEN-TEXT ANALYSIEREN</button>
 
     <div id="result" class="card hidden">
-        <h2 id="res-name" style="margin:0;">Analyse</h2>
-        
-        <div id="res-summary" class="summary-box"></div>
-
-        <div class="dash-grid">
-            <div class="dash-item"><small>Nova Gruppe</small><big id="res-nova">-</big></div>
-            <div class="dash-item"><small>CO2 Abdruck</small><big id="res-co2">🌍</big></div>
-        </div>
-
+        <h2 id="res-name" style="margin-top:0;">Analyse</h2>
         <div id="res-list"></div>
-        <button class="btn" style="background:#8e8e93;" onclick="document.getElementById('result').classList.add('hidden')">Neu scannen</button>
-    </div>
-
-    <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h4 style="margin:0;">VERLAUF & EXPORT</h4>
-            <button onclick="exportHistory()" style="background:none; border:none; color:var(--primary); font-weight:bold; cursor:pointer;">EXPORT REPORT</button>
-        </div>
-        <div id="history-list" style="margin-top:10px; font-size:0.8rem;"></div>
+        <button class="btn" onclick="location.reload()">Neuer Scan</button>
     </div>
 </div>
 
 <script>
-    let html5QrCode, worker;
+    // DIE ULTIMATIVE ENTSCHLÜSSELUNGS-DATENBANK
+    const ADDITIVE_WIKI = {
+        // Konservierungsstoffe
+        "e250": { name: "Natriumnitrit", usage: "Konservierung (Pökelsalz)", risk: "high", info: "Verhindert Bakterien in Fleisch, kann aber krebserregende Nitrosamine bilden. Meiden!" },
+        "e202": { name: "Kaliumsorbat", usage: "Konservierung", risk: "low", info: "Hemmt Hefen und Schimmel. Gilt als unbedenklich, kann aber bei Allergikern Reaktionen auslösen." },
+        
+        // Farbstoffe
+        "e102": { name: "Tartrazin (Gelb)", usage: "Farbstoff", risk: "high", info: "Kann Aktivität und Aufmerksamkeit bei Kindern beeinträchtigen (Azo-Farbstoff)." },
+        "e171": { name: "Titandioxid", usage: "Farbstoff (Weiß)", risk: "high", info: "In der EU mittlerweile in Lebensmitteln verboten. Steht im Verdacht, das Erbgut zu schädigen." },
 
-    // DIE ULTIMATIVE DATENBANK
-    const MASTER_DB = {
-        "e440": { name: "Pektin (E440)", risk: "low", nova: 2, co2: "low", info: "Natürlicher Ballaststoff aus Früchten. Sehr gesund für den Darm." },
-        "pektin": { name: "Pektin", risk: "low", nova: 2, co2: "low", info: "Pflanzliches Geliermittel. Unbedenklich." },
-        "maltodextrin": { name: "Maltodextrin", risk: "med", nova: 4, co2: "med", info: "Versteckter Zucker. Belastet den Insulinstatus." },
-        "e621": { name: "Glutamat (E621)", risk: "high", nova: 4, co2: "high", info: "Geschmacksverstärker. Kann Sättigungsgefühl stören." },
-        "palm": { name: "Palmfett", risk: "high", nova: 4, co2: "high", info: "Industriefett. Kritisch für Herz und Regenwald." },
-        "rind": { name: "Rindfleischanteil", risk: "low", nova: 3, co2: "high", info: "Hoher CO2-Fußabdruck durch Tierhaltung." }
+        // Geliermittel & Verdicker
+        "e440": { name: "Pektin", usage: "Geliermittel", risk: "low", info: "Natürlicher Stoff aus Äpfeln/Zitrusfrüchten. Ein wertvoller Ballaststoff." },
+        "e412": { name: "Guarkernmehl", usage: "Verdicker", risk: "low", info: "Pflanzlich. Sättigt gut, kann in hohen Mengen aber leicht abführend wirken." },
+        "e415": { name: "Xanthan", usage: "Verdicker", risk: "low", info: "Durch Fermentation gewonnen. Völlig harmlos und oft in Bio-Produkten." },
+
+        // Süßstoffe & Zuckerersatz
+        "e951": { name: "Aspartam", usage: "Süßstoff", risk: "med", info: "Extrem süß, kalorienfrei. Umstritten, da es bei manchen Menschen Kopfschmerzen auslöst." },
+        "e955": { name: "Sucralose", usage: "Süßstoff", risk: "low", info: "Zahnfreundlich und stabil beim Backen. Gilt nach aktuellem Stand als sicher." },
+
+        // Geschmacksverstärker
+        "e621": { name: "Mononatriumglutamat", usage: "Verstärker", risk: "high", info: "Triggert das Gehirn ('Umami'). Kann zu Überessen führen und Heißhunger auslösen." },
+
+        // Emulgatoren
+        "e322": { name: "Lecithin", usage: "Emulgator", risk: "low", info: "Meist aus Soja oder Raps. Wichtig für den Fettstoffwechsel und die Nerven." }
     };
 
-    async function setup() {
+    let html5QrCode, worker;
+
+    async function init() {
         html5QrCode = new Html5Qrcode("reader");
-        html5QrCode.start({ facingMode: "environment" }, { fps: 15, qrbox: 250 }, (code) => {
-            fetchBarcodeData(code);
+        await html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (code) => {
+            fetchBarcode(code);
         });
         worker = await Tesseract.createWorker('deu');
-        renderHistory();
     }
 
-    async function fetchBarcodeData(barcode) {
-        const resp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,nova_group,ecoscore_grade,additives_tags`);
-        const data = await resp.json();
-        if(data.status === 1) {
-            const p = data.product;
-            const items = (p.additives_tags || []).map(a => {
-                const code = a.replace('en:', '');
-                return MASTER_DB[code] || { name: code, risk: "low", info: "Zusatzstoff." };
-            });
-            displayFullAnalysis(p.product_name, p.nova_group || 3, p.ecoscore_grade || 'c', items);
-        }
+    async function fetchBarcode(code) {
+        const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,additives_tags`);
+        const d = await r.json();
+        if(d.status === 1) renderResults(d.product.product_name, d.product.additives_tags || []);
     }
 
-    async function startDeepOCR() {
-        document.getElementById('status').innerText = "KI analysiert Zutatenliste...";
+    async function scanText() {
         const video = document.querySelector('video');
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth; canvas.height = video.videoHeight;
         canvas.getContext('2d').drawImage(video, 0, 0);
-
         const { data: { text } } = await worker.recognize(canvas);
-        const lowerText = text.toLowerCase();
         
-        let found = [];
-        let maxNova = 1;
-        let co2Level = 'B';
-
-        for(let key in MASTER_DB) {
-            if(lowerText.includes(key)) {
-                found.push(MASTER_DB[key]);
-                if(MASTER_DB[key].nova > maxNova) maxNova = MASTER_DB[key].nova;
-                if(MASTER_DB[key].co2 === 'high') co2Level = 'E';
+        let foundTags = [];
+        const lower = text.toLowerCase();
+        for(let key in ADDITIVE_WIKI) {
+            if(lower.includes(key) || lower.includes(ADDITIVE_WIKI[key].name.toLowerCase())) {
+                foundTags.push("en:" + key);
             }
         }
-        displayFullAnalysis("Text-Analyse", maxNova, co2Level, found);
+        renderResults("Text-Analyse", foundTags);
     }
 
-    function displayFullAnalysis(name, nova, eco, items) {
+    function renderResults(name, tags) {
         document.getElementById('res-name').innerText = name;
-        document.getElementById('res-nova').innerText = nova;
-        document.getElementById('res-co2').innerText = eco.toUpperCase();
-        
-        const summary = document.getElementById('res-summary');
-        if(nova >= 4) {
-            summary.innerText = "KRITISCH: HOCHVERARBEITET";
-            summary.style.background = "var(--red)"; summary.style.color = "white";
-        } else {
-            summary.innerText = "GUT: NATURNAHES PRODUKT";
-            summary.style.background = "var(--green)"; summary.style.color = "white";
-        }
-
         const list = document.getElementById('res-list');
-        list.innerHTML = "<h4>Inhalts-Check:</h4>";
-        items.forEach(item => {
-            list.innerHTML += `<div class="additive-box ${item.risk}"><strong>${item.name}</strong><br><small>${item.info}</small></div>`;
+        list.innerHTML = "";
+        
+        tags.forEach(t => {
+            const key = t.replace('en:', '').toLowerCase();
+            const data = ADDITIVE_WIKI[key] || { name: key.toUpperCase(), usage: "Zusatzstoff", risk: "low", info: "Keine detaillierte Warnung in der Datenbank vorhanden." };
+            
+            list.innerHTML += `
+                <div class="additive-item risk-${data.risk}">
+                    <span class="add-usage">${data.usage}</span>
+                    <span class="add-name">${data.name}</span>
+                    <p class="add-info">${data.info}</p>
+                </div>
+            `;
         });
 
-        saveToHistory({ name, nova, eco, items, date: new Date().toLocaleString() });
+        if(tags.length === 0) list.innerHTML = "<p>Keine spezifischen E-Stoffe erkannt.</p>";
         document.getElementById('result').classList.remove('hidden');
-        document.getElementById('status').innerText = "Analyse abgeschlossen.";
     }
 
-    function saveToHistory(entry) {
-        let h = JSON.parse(localStorage.getItem('nutrition_pro_history') || "[]");
-        h.unshift(entry);
-        localStorage.setItem('nutrition_pro_history', JSON.stringify(h.slice(0, 50)));
-        renderHistory();
-    }
-
-    function renderHistory() {
-        const h = JSON.parse(localStorage.getItem('nutrition_pro_history') || "[]");
-        document.getElementById('history-list').innerHTML = h.map(i => `
-            <div style="border-bottom:1px solid #eee; padding:8px 0; display:flex; justify-content:space-between;">
-                <span><b>${i.name}</b><br><small>Nova ${i.nova} | Eco ${i.eco.toUpperCase()}</small></span>
-                <small>${i.date.split(',')[0]}</small>
-            </div>
-        `).join('') || "Keine Scans.";
-    }
-
-    function exportHistory() {
-        const h = JSON.parse(localStorage.getItem('nutrition_pro_history') || "[]");
-        let txt = "📊 NUTRITION VISION PRO EXPERT REPORT\n\n";
-        h.forEach(s => {
-            txt += `PRODUKT: ${s.name}\nDATUM: ${s.date}\nNOVA SCORE: ${s.nova}\nECO SCORE: ${s.eco.toUpperCase()}\nDETAILS:\n`;
-            s.items.forEach(i => txt += `- ${i.name}: ${i.info}\n`);
-            txt += "-----------------------------------\n";
-        });
-        navigator.clipboard.writeText(txt);
-        alert("Detaillierter Export-Bericht wurde in die Zwischenablage kopiert!");
-    }
-
-    window.onload = setup;
+    window.onload = init;
 </script>
 </body>
 </html>
